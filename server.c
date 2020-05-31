@@ -112,6 +112,9 @@ pthread_mutex_t ready_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t getBets_condition = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t bets_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_cond_t betsReady_condition = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t betsReady_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 ///// FUNCTION DECLARATIONS
 void usage(char * program);
 void setupHandlers();
@@ -469,14 +472,13 @@ void * attentionThread(void * arg)
               printf("TESTING\n");
               pthread_cond_broadcast(&start_condition);
           } 
-          pthread_mutex_unlock(&ready_mutex);
+        pthread_mutex_unlock(&ready_mutex);
     }
 
     pthread_mutex_lock(&ready_mutex);
-          while (info->viuda_data->playersReady < info->viuda_data->numPlayers) { //Do nothing (wait for ths to be false)
-                  pthread_cond_wait(&start_condition, &ready_mutex);
+          while (info->viuda_data->playersReady < info->viuda_data->numPlayers) { //Do nothing (wait for this to be false)
+                pthread_cond_wait(&start_condition, &ready_mutex);
           }
-          printf("Hello\n");
     pthread_mutex_unlock(&ready_mutex);
 
     // Prepare a reply
@@ -509,31 +511,44 @@ void * attentionThread(void * arg)
         // else if (poll_response > 0) //if something was received
         // {
 
-            //Conditional variable to know the turn of the player to play
             pthread_mutex_lock(&bets_mutex);
-                if (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id == info->playerId){
-                    printf("ENTRO AL PRIMERO\n");
-                    send(info->connection_fd, &info->message, sizeof info->message, 0);
-                    info->viuda_data->index_playerInTurn++;
-                    pthread_cond_signal(&getBets_condition);
-                } else {
-                    //wait for its turn
-                    pthread_cond_wait(&getBets_condition, &bets_mutex);
+                while (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id != info->playerId){ 
+                        pthread_cond_wait(&getBets_condition, &bets_mutex);
+                }
+                printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
+                send(info->connection_fd, &info->message, sizeof info->message, 0);
+                // Receive the request
+                if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
+                    pthread_exit(NULL);
+                    // return;
                 }
             pthread_mutex_unlock(&bets_mutex);
 
-            // pthread_mutex_lock(&bets_mutex);
-            //     while (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id != info->playerId) { //Do nothing (wait for ths to be false)
-            //             pthread_cond_wait(&getBets_condition, &bets_mutex);
-            //     }
-            //     printf("Hello\n");
-            // pthread_mutex_unlock(&bets_mutex);
+            //Conditional variable to know the turn of the player to play
+            pthread_mutex_lock(&bets_mutex);
+            printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id, info->viuda_data->index_playerInTurn, info->playerId);
+                if (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id == info->playerId){
+                    printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
+                    pthread_mutex_lock(&betsReady_mutex);
+                    printf("info->viuda_data->index_playerInTurn: %d\n", info->viuda_data->index_playerInTurn);
+                    info->viuda_data->index_playerInTurn++;
+                    if (info->viuda_data->index_playerInTurn == info->viuda_data->numPlayers){
+                        printf("TESTING\n");
+                        pthread_cond_broadcast(&betsReady_condition);
+                    } 
+                    pthread_mutex_unlock(&betsReady_mutex);
+                    printf("UNLOCKED\n");
+                    pthread_cond_broadcast(&getBets_condition);
+                } 
+            pthread_mutex_unlock(&bets_mutex);
 
-            // Receive the request
-            if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
-                pthread_exit(NULL);
-                // return;
-            }
+            pthread_mutex_lock(&betsReady_mutex);
+                while (info->viuda_data->index_playerInTurn < info->viuda_data->numPlayers){ //Do nothing (wait for ths to be false)
+                        pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
+                }
+                printf("AFTER BETS\n");
+            pthread_mutex_unlock(&betsReady_mutex);
+
 
             printf("The bet of the player is: %d\n", info->message.playerBet);
 
