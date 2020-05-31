@@ -168,6 +168,7 @@ void communicationLoop(int connection_fd)
     message_t message; //message with the information that will be updated between server and client
     int round = 0;
     int askBet;
+    int start_game = 1;
 
     // Handshake
     message.msg_code = PLAY;
@@ -179,7 +180,11 @@ void communicationLoop(int connection_fd)
         printf("Connection refused by the server");
         return;
     }
-    if (message.msg_code != AMOUNT)
+
+    if(message.msg_code == FULL){
+        printf("The game is full. The server rejected the client.\n");
+        return;
+    }else if (message.msg_code != AMOUNT)
     {
         printf("Invalid server\n");
         return;
@@ -188,6 +193,24 @@ void communicationLoop(int connection_fd)
     // Ask user for his total amount of chips to play
     printf("Enter the amount of chips that you have to play: ");
     scanf("%d", &message.playerAmount);
+    send(connection_fd, &message, sizeof message, 0);
+
+    recvData(connection_fd, &message, sizeof message);
+
+    while(start_game){ 
+        printf("Press 2 to start the game\n");
+        fflush( stdout );
+        scanf("%d", &start_game);
+        if(start_game == 2){
+            printf("note='%d'\n", start_game);
+            start_game = 0;
+        }
+    }
+
+    printf("ADIOS\n");
+
+    message.theStatus = LOBBY;
+
     send(connection_fd, &message, sizeof message, 0);
 
     // Get the OK to start the game loop, receive STARTs

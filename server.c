@@ -63,11 +63,29 @@ typedef struct locks_struct {
 //     locks_t * data_locks;
 // } thread_data_t;
 
-typedef struct viuda_struct {
-
+// Data for a single player
+typedef struct player_struct {
+    int id;
+    int connected;
+    int lost;
+    int status;
     int bet;
-    int betAgreement;
-    int lowestAmount;
+} player_t;
+
+typedef struct viuda_struct { //Main structure for status of the game
+
+    int gameBet;
+    int betAgreement; // Tells if all the players agreed on the bet 
+    int lowestAmount; // The lowest amount given by the players
+    int prize; //The amount to give to the winner
+	// tableCards: []
+    int numPlayers; // Number of players to start playing the game
+    player_t * players_array;
+	int playerInTurn; //id of player in turn
+    int index_playerInTurn; //id of player in turn
+    int winner;
+    int playersReady;
+    int gameStatus;
 
 } viuda_t;
 
@@ -76,10 +94,8 @@ typedef struct data_struct {
     // The file descriptor for the socket
     message_t message;
     int connection_fd;
-    int connectionNumber;
-    int player;
-    int agreeBet;
-    int prize; //The amount to give to the winner
+    int playerId;
+    // int agreeBet;
     // // A pointer to a bank data structure
     // bank_t * bank_data;
     viuda_t * viuda_data;
@@ -90,21 +106,28 @@ typedef struct data_struct {
 
 // Global variables for signal handlers
 int interrupt_exit = 0;
+pthread_cond_t start_condition = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t ready_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_cond_t getBets_condition = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t bets_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 ///// FUNCTION DECLARATIONS
 void usage(char * program);
 void setupHandlers();
 void detectInterruption(int signal);
-void initBank(bank_t * bank_data, locks_t * data_locks);
-void readBankFile(bank_t * bank_data);
+// void initBank(bank_t * bank_data, locks_t * data_locks);
+// void readBankFile(bank_t * bank_data);
 // void waitForConnections(int server_fd, bank_t * bank_data, locks_t * data_locks);
+void initGame(viuda_t * viuda_data);
 void waitForConnections(int server_fd, viuda_t * viuda_data);
 void * attentionThread(void * arg);
-void closeBank(bank_t * bank_data, locks_t * data_locks);
+void addNewPlayer(int playerId, viuda_t * viuda_data);
+// void closeBank(bank_t * bank_data, locks_t * data_locks);
 int checkValidAccount(int account);
 void storeChanges(bank_t * bank_data);
 void completeFirstDeal(message_t * message, int connection_fd);
+void assignTurns(player_t * players_array, int numPlayers);
 /*
     TODO: Add your function declarations here
 */
@@ -112,7 +135,6 @@ void calculateResults(message_t * message);
 void dealerTurn(message_t * message, int connection_fd);
 void playerTurn(message_t * message, int connection_fd);
 int getRandomCard(message_t * message, char pord);
-
 
 ///// MAIN FUNCTION
 int main(int argc, char * argv[])
@@ -136,6 +158,7 @@ int main(int argc, char * argv[])
 
     // Initialize the data structures
     // initBank(&bank_data, &data_locks);
+    initGame(&viuda_data);
 
 	// Show the IPs assigned to this computer
 	printLocalIPs();
@@ -226,7 +249,7 @@ void initBank(bank_t * bank_data, locks_t * data_locks)
     }
 
     // Read the data from the file
-    readBankFile(bank_data);
+    // readBankFile(bank_data);
 }
 
 
@@ -272,17 +295,15 @@ void waitForConnections(int server_fd, viuda_t * viuda_data)
     // pthread_t new_tid;
     // int poll_response;
 	// int timeout = 500;		// Time in milliseconds (0.5 seconds)
-    int connectionsNum = 0;
+    // int connectionsNum = 0;
     int status;
+    int idCount = 1; //Variable to assign ids for each player connected
 
     // Create a structure array to hold the file descriptors to poll
     // struct pollfd test_fds[1];
     // // Fill in the structure
     // test_fds[0].fd = server_fd;
     // test_fds[0].events = POLLIN;    // Check for incomming data
-
-    // Get the size of the structure to store client information
-    // connection_data = malloc(MAX_PLAYERS * sizeof(thread_data_t));
 
     while (1)
     {
@@ -320,9 +341,8 @@ void waitForConnections(int server_fd, viuda_t * viuda_data)
             connection_data = malloc (sizeof (thread_data_t));
             // Prepare the structure to send to the thread
             connection_data->connection_fd = client_fd;
-            connection_data->connectionNumber = connectionsNum;
             connection_data->viuda_data = viuda_data;
-            connection_data->player = connectionsNum;
+            connection_data->playerId = idCount;
             
             // CREATE A THREAD
             status = pthread_create(&tid, NULL, attentionThread, connection_data);
@@ -331,8 +351,9 @@ void waitForConnections(int server_fd, viuda_t * viuda_data)
             {
                 perror("ERROR: pthread_create");
                 close(client_fd);
-            }    
-            connectionsNum++;  
+            }else {
+                idCount++;
+            }
         // }
         // else
         // {
@@ -383,13 +404,33 @@ void * attentionThread(void * arg)
         printf("Error: unrecognized client\n");
         send(info->connection_fd, &info->message, sizeof info->message, 0);
         pthread_exit(NULL);
+    } else {
+        info->viuda_data->numPlayers++;
+    }
+
+    if(info->viuda_data->gameStatus == START){ //Game already started
+        printf("Rejected client, the game has already started.\n");
+        info->message.msg_code = FULL;
+        info->viuda_data->numPlayers--;
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+        close(info->connection_fd);
+        pthread_exit(NULL);
+    }
+
+    if(info->viuda_data->numPlayers>MAX_PLAYERS){  //Check if the maximum players (8) has been reached
+        printf("Rejected client, there are already 8 players.\n");
+        info->message.msg_code = FULL;
+        info->viuda_data->numPlayers--;
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+        close(info->connection_fd);
+        pthread_exit(NULL);
     }
 
     // Prepare a reply
     info->message.msg_code = AMOUNT;
     send(info->connection_fd, &info->message, sizeof info->message, 0);
 
-    // Get the reply and validate again receives AMOUNT
+    // Get the reply and validate again, receives AMOUNT
     recvData(info->connection_fd, &info->message, sizeof info->message);
     if (info->message.msg_code != AMOUNT)
     {
@@ -400,16 +441,47 @@ void * attentionThread(void * arg)
 
     printf("The starting amount of the player is: %d\n", info->message.playerAmount);
 
-    if(info->viuda_data->lowestAmount > info->message.playerAmount) {
+    if((info->viuda_data->lowestAmount > info->message.playerAmount) || (info->viuda_data->lowestAmount == 0)) {
         info->viuda_data->lowestAmount = info->message.playerAmount;
     }
 
     printf("The players can bet at most %d.\n", info->viuda_data->lowestAmount);
 
+    //add player to players array
+    addNewPlayer(info->playerId, info->viuda_data);
+
+    printf("Checking if the player is ready to start.\n");
+
+    send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+    recvData(info->connection_fd, &info->message, sizeof info->message);
+
+    //Conditional variable to know if all the players are ready to play
+    if(info->message.theStatus == LOBBY) {
+        pthread_mutex_lock(&ready_mutex);
+          info->viuda_data->playersReady++;
+          if (info->viuda_data->playersReady == info->viuda_data->numPlayers){
+              info->viuda_data->gameStatus = START;
+              assignTurns(info->viuda_data->players_array, info->viuda_data->numPlayers); //Put all the players at the beginning of the array so it is filled without empty spaces
+              for(int i =0 ; i<info->viuda_data->numPlayers; i++){
+                printf("PLAYER INFO: %d, Connected: %d, %d\n", info->viuda_data->players_array[i].id, info->viuda_data->players_array[i].connected, i);
+              }
+              printf("TESTING\n");
+              pthread_cond_broadcast(&start_condition);
+          } 
+          pthread_mutex_unlock(&ready_mutex);
+    }
+
+    pthread_mutex_lock(&ready_mutex);
+          while (info->viuda_data->playersReady < info->viuda_data->numPlayers) { //Do nothing (wait for ths to be false)
+                  pthread_cond_wait(&start_condition, &ready_mutex);
+          }
+          printf("Hello\n");
+    pthread_mutex_unlock(&ready_mutex);
+
     // Prepare a reply
     info->message.playerStatus = START;
     info->message.dealerStatus = START;
-    send(info->connection_fd, &info->message, sizeof info->message, 0);
 
     // printf("\tRunning thread with connection_fd: %d\n", info->connection_fd);
 
@@ -436,6 +508,27 @@ void * attentionThread(void * arg)
         // }
         // else if (poll_response > 0) //if something was received
         // {
+
+            //Conditional variable to know the turn of the player to play
+            pthread_mutex_lock(&bets_mutex);
+                if (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id == info->playerId){
+                    printf("ENTRO AL PRIMERO\n");
+                    send(info->connection_fd, &info->message, sizeof info->message, 0);
+                    info->viuda_data->index_playerInTurn++;
+                    pthread_cond_signal(&getBets_condition);
+                } else {
+                    //wait for its turn
+                    pthread_cond_wait(&getBets_condition, &bets_mutex);
+                }
+            pthread_mutex_unlock(&bets_mutex);
+
+            // pthread_mutex_lock(&bets_mutex);
+            //     while (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id != info->playerId) { //Do nothing (wait for ths to be false)
+            //             pthread_cond_wait(&getBets_condition, &bets_mutex);
+            //     }
+            //     printf("Hello\n");
+            // pthread_mutex_unlock(&bets_mutex);
+
             // Receive the request
             if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
                 pthread_exit(NULL);
@@ -512,6 +605,34 @@ void * attentionThread(void * arg)
     close(info->connection_fd);
 
     pthread_exit(NULL);
+}
+
+void addNewPlayer(int playerId, viuda_t * viuda_data) {
+
+    for(int i = 0; i<MAX_PLAYERS; i++){
+        if(viuda_data->players_array[i].id == 0){
+            viuda_data->players_array[i].id = playerId;
+            viuda_data->players_array[i].connected = 1;
+            viuda_data->players_array[i].lost = 0;
+            viuda_data->players_array[i].status = LOBBY;
+            printf("Added player with ID: %d\n", viuda_data->players_array[i].id);
+            break;
+        }
+    }
+
+}
+
+void removePlayer(int playerId, viuda_t * viuda_data) {
+
+    for(int i = 0; i<MAX_PLAYERS; i++){
+        if(viuda_data->players_array[i].id == playerId){
+            viuda_data->players_array[i].id = 0;
+            viuda_data->players_array[i].connected = 0;
+            printf("Removed player with ID: %d\n", viuda_data->players_array[i].id);
+            break;
+        }
+    }
+
 }
 
 int getRandomCard(message_t * message, char pord){ //pord stands for player or dealer
@@ -703,6 +824,53 @@ void calculateResults(message_t * message){
     }
 }
 
+/*
+    Function to initialize all the information necessary
+*/
+void initGame(viuda_t * viuda_data) {
+
+    viuda_data->numPlayers = 0;
+    viuda_data->gameBet = 0;
+    viuda_data->prize = 0;
+    viuda_data->winner = 0;
+    viuda_data->playerInTurn = 0;
+    viuda_data->index_playerInTurn = 0;
+    viuda_data->playersReady =  0;
+    viuda_data->lowestAmount =  0;
+    viuda_data->gameStatus = WAIT;
+
+    viuda_data->players_array = malloc(MAX_PLAYERS * sizeof (player_t));
+
+    for(int i = 0; i<MAX_PLAYERS; i++){
+        viuda_data->players_array[i].id = 0;
+        viuda_data->players_array[i].status = WAIT;
+    }
+}
+
+void assignTurns(player_t * players_array, int numPlayers){
+
+    player_t * tempArray;
+    int index = 0;
+
+    tempArray = malloc(numPlayers * sizeof (player_t));
+
+    for(int i = 0; i < MAX_PLAYERS; i++){
+        if(players_array[i].id > 0){
+            tempArray[index] = players_array[i];
+            index++;
+        }
+    }
+
+    for(int i = 0; i < MAX_PLAYERS; i++){
+        if(i<numPlayers){
+            players_array[i] = tempArray[i];
+        } else {
+            players_array[i].id = 0;
+            players_array[i].connected = 0;
+        }
+    }
+
+}
 /*
     Free all the memory used for the bank data
 */
