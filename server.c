@@ -60,13 +60,7 @@ typedef enum {
     RoyalFlush
 } hand_ranking_t;
 
-// Structure for the mutexes to keep the data consistent
-typedef struct locks_struct {
-    // Mutex for the number of transactions variable
-    pthread_mutex_t transactions_mutex;
-    // Mutex array for the operations on the accounts
-    pthread_mutex_t * account_mutex;
-} locks_t;
+
 
 // // Data that will be sent to each thread
 // typedef struct data_struct {
