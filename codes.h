@@ -27,4 +27,5 @@ typedef struct {
     int numDealerCards;
     char dealerCards[MAXCARDS][MAXLENGTH]; 
     int totalDealer;
+    int lowestAmount;
 } message_t;

@@ -230,7 +230,10 @@ void communicationLoop(int connection_fd)
             scanf("%d", &message.playerBet);
             if(message.playerBet > message.playerAmount){
                 printf("You don't have that amount of chips to bet. You have %d. Provide a smaller bet.\n", message.playerAmount);
-            }else if ((message.playerBet > 500) || (message.playerBet < 2)){
+            } else if(message.lowestAmount < message.playerBet) {
+                printf("You cannot bet more than %d for this game. You still have %d to bet. Provide a smaller bet.\n", message.lowestAmount, message.playerAmount);
+            }
+             else if ((message.playerBet > 500) || (message.playerBet < 2)){
                 printf("The amount that you want to bet is out of range. Your bet should be from 2 to 500 chips.\n");
             }else {
                 askBet = 0;
