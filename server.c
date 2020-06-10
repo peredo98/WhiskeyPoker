@@ -174,6 +174,7 @@ int isStraight(hand_t * hand);
 int hasThreeOfaKind(hand_t * hand);
 int hasTwoPairs(hand_t * hand);
 int hasOnePair(hand_t * hand);
+void chooseViuda(viuda_t *viuda_data);
 hand_t compareHands(hand_t hand, hand_t other_hand);
 
 /*
@@ -275,30 +276,30 @@ void setupHandlers()
     Function to initialize all the information necessary
     This will allocate memory for the accounts, and for the mutexes
 */
-void initBank(bank_t * bank_data, locks_t * data_locks)
-{
-    // Set the number of transactions
-    bank_data->total_transactions = 0;
+// void initBank(bank_t * bank_data, locks_t * data_locks)
+// {
+//     // Set the number of transactions
+//     bank_data->total_transactions = 0;
 
-    // Allocate the arrays in the structures
-    bank_data->account_array = malloc(MAX_ACCOUNTS * sizeof (account_t));
-    // Allocate the arrays for the mutexes
-    data_locks->account_mutex = malloc(MAX_ACCOUNTS * sizeof (pthread_mutex_t));
+//     // Allocate the arrays in the structures
+//     bank_data->account_array = malloc(MAX_ACCOUNTS * sizeof (account_t));
+//     // Allocate the arrays for the mutexes
+//     data_locks->account_mutex = malloc(MAX_ACCOUNTS * sizeof (pthread_mutex_t));
 
-    // Initialize the mutexes, using a different method for dynamically created ones
-    //data_locks->transactions_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_init(&data_locks->transactions_mutex, NULL);
-    for (int i=0; i<MAX_ACCOUNTS; i++)
-    {
-        //data_locks->account_mutex[i] = PTHREAD_MUTEX_INITIALIZER;
-        pthread_mutex_init(&data_locks->account_mutex[i], NULL);
-        // Initialize the account balances too
-        bank_data->account_array[i].balance = 0.0;
-    }
+//     // Initialize the mutexes, using a different method for dynamically created ones
+//     //data_locks->transactions_mutex = PTHREAD_MUTEX_INITIALIZER;
+//     pthread_mutex_init(&data_locks->transactions_mutex, NULL);
+//     for (int i=0; i<MAX_ACCOUNTS; i++)
+//     {
+//         //data_locks->account_mutex[i] = PTHREAD_MUTEX_INITIALIZER;
+//         pthread_mutex_init(&data_locks->account_mutex[i], NULL);
+//         // Initialize the account balances too
+//         bank_data->account_array[i].balance = 0.0;
+//     }
 
-    // Read the data from the file
-    // readBankFile(bank_data);
-}
+//     // Read the data from the file
+//     // readBankFile(bank_data);
+// }
 
 
 /*
@@ -585,6 +586,7 @@ void * attentionThread(void * arg)
                     if (info->viuda_data->index_playerInTurn == info->viuda_data->numPlayers){
                         printf("The prize for the winner is: %d\n", info->viuda_data->prize);
                         dealCards(info->viuda_data);
+                        chooseViuda(info->viuda_data);
                         pthread_cond_broadcast(&betsReady_condition);
                     } 
                     pthread_mutex_unlock(&betsReady_mutex);
@@ -867,6 +869,88 @@ hand_t compareHands(hand_t hand, hand_t other_hand){
         }
     }
 
+}
+
+void chooseViuda (viuda_t *viuda_data){
+    
+    int option;
+    int chooseCard;
+    int chooseTableCard;
+    //full hand
+    hand_t playerHand = viuda_data->players_array[0].hand;
+    hand_t tableHand = viuda_data->table_hand;
+    hand_t temp;
+
+    //one card
+    card_t tempCard;
+
+    while(1){ //Keep asking for a valid bet
+            printf("Si quieres la viuda entera presiona 1, si quieres solo uan carta presiona 2\n");
+            scanf("%d", &option);
+            if(option == 1){
+                printf("Toma la viuda entera");
+                temp = playerHand;
+                playerHand = tableHand;
+                tableHand = temp;
+                viuda_data->table_hand = tableHand;
+                viuda_data->players_array[0].hand=playerHand;
+                break;
+            } 
+            else if(option == 2) {
+                while(1){
+                    printf("Escoge la carta que vas a cambiar: ");
+                    printf("Card 1 = %s %s\n",playerHand.cards[0].rank, playerHand.cards[0].suit);
+                    printf("Card 2 = %s %s\n",playerHand.cards[1].rank, playerHand.cards[1].suit);
+                    printf("Card 3 = %s %s\n",playerHand.cards[2].rank, playerHand.cards[2].suit);
+                    printf("Card 4 = %s %s\n",playerHand.cards[3].rank, playerHand.cards[3].suit);
+                    printf("Card 5 = %s %s\n",playerHand.cards[4].rank, playerHand.cards[4].suit);
+                    scanf("%d", &chooseCard);
+
+                    printf("Escoge una sola carta: ");
+                    printf("Card 1 = %s %s\n",tableHand.cards[0].rank, tableHand.cards[0].suit);
+                    printf("Card 2 = %s %s\n",tableHand.cards[1].rank, tableHand.cards[1].suit);
+                    printf("Card 3 = %s %s\n",tableHand.cards[2].rank, tableHand.cards[2].suit);
+                    printf("Card 4 = %s %s\n",tableHand.cards[3].rank, tableHand.cards[3].suit);
+                    printf("Card 5 = %s %s\n",tableHand.cards[4].rank, tableHand.cards[4].suit);
+                    scanf("%d", &chooseTableCard);
+                    
+                    if(chooseCard<1 || chooseCard>5 || chooseTableCard<1 || chooseTableCard>5){
+                        printf("Error choose a number between 1 and 5 \n");
+                    }
+                    else{
+                        tempCard = tableHand.cards[chooseTableCard-1];
+                        tableHand.cards[chooseTableCard-1] =playerHand.cards[chooseCard-1];
+                        playerHand.cards[chooseCard-1] = tempCard; 
+                        break;
+                    }
+                }
+                evaluateHand(&playerHand);
+                sortCardsByRank(&playerHand);
+                evaluateHand(&tableHand);
+                sortCardsByRank(&tableHand);
+                viuda_data->table_hand = tableHand;
+                viuda_data->players_array[0].hand=playerHand;
+                break;
+            }
+            else {
+               printf("Opcion no valida, vuelve a intentar");
+            }
+    }
+    for(int i = 0; i<((viuda_data->numPlayers) + 1); i++){
+        if(i == viuda_data->numPlayers){
+            printf("Changed Table cards:\n");
+            for(int j = 0; j<5; j++){
+                printf("Cart: %s, Suit %s, SuitValue %d,Value %d\n", viuda_data->table_hand.cards[j].rank, viuda_data->table_hand.cards[j].suit, viuda_data->table_hand.cards[j].suit_value, viuda_data->table_hand.cards[j].rank_value);
+            }
+            printf("\n");
+        }else {
+            printf("Changed Player %d Cards\n", viuda_data->players_array[i].id);
+            for(int j = 0; j<5; j++){
+                printf("Cart: %s, Suit %s, SuitValue %d, Value %d\n", viuda_data->players_array[i].hand.cards[j].rank, viuda_data->players_array[i].hand.cards[j].suit, viuda_data->players_array[i].hand.cards[j].suit_value, viuda_data->players_array[i].hand.cards[j].rank_value);
+            }
+            printf("\n");
+        }
+    }
 }
 
 void evaluateHand(hand_t * hand){
@@ -1333,12 +1417,12 @@ void assignTurns(player_t * players_array, int numPlayers){
 /*
     Free all the memory used for the bank data
 */
-void closeBank(bank_t * bank_data, locks_t * data_locks)
-{
-    printf("DEBUG: Clearing the memory for the thread\n");
-    free(bank_data->account_array);
-    free(data_locks->account_mutex);
-}
+// void closeBank(bank_t * bank_data, locks_t * data_locks)
+// {
+//     printf("DEBUG: Clearing the memory for the thread\n");
+//     free(bank_data->account_array);
+//     free(data_locks->account_mutex);
+// }
 
 
 /*
