@@ -301,36 +301,6 @@ void setupHandlers()
 //     // readBankFile(bank_data);
 // }
 
-
-/*
-    Get the data from the file to initialize the accounts
-*/
-void readBankFile(bank_t * bank_data)
-{
-    FILE * file_ptr = NULL;
-    char buffer[BUFFER_SIZE];
-    int account = 0;
-    char * filename = "accounts.txt";
-
-    file_ptr = fopen(filename, "r");
-    if (!file_ptr)
-    {
-        perror("ERROR: fopen");
-    }
-
-    // Ignore the first line with the headers
-    fgets(buffer, BUFFER_SIZE, file_ptr);
-    // Read the rest of the account data
-    while( fgets(buffer, BUFFER_SIZE, file_ptr) )
-    {
-        sscanf(buffer, "%d %d %f", &bank_data->account_array[account].id, &bank_data->account_array[account].pin, &bank_data->account_array[account].balance); 
-        account++;
-    }
-    
-    fclose(file_ptr);
-}
-
-
 /*
     Main loop to wait for incomming connections
 */
@@ -341,91 +311,91 @@ void waitForConnections(int server_fd, viuda_t * viuda_data)
     socklen_t client_address_size;
     char client_presentation[INET_ADDRSTRLEN];
     int client_fd;
-    // pthread_t new_tid;
-    // int poll_response;
-	// int timeout = 500;		// Time in milliseconds (0.5 seconds)
-    // int connectionsNum = 0;
-    int status;
-    int idCount = 1; //Variable to assign ids for each player connected
+    pthread_t new_tid;
+    thread_data_t * connection_data = NULL;
+    int poll_response;
+	int timeout = 500;		// Time in milliseconds (0.5 seconds)
 
     // Create a structure array to hold the file descriptors to poll
-    // struct pollfd test_fds[1];
-    // // Fill in the structure
-    // test_fds[0].fd = server_fd;
-    // test_fds[0].events = POLLIN;    // Check for incomming data
+    struct pollfd test_fds[1];
+    // Fill in the structure
+    test_fds[0].fd = server_fd;
+    test_fds[0].events = POLLIN;    // Check for incomming data
+
+    // Get the size of the structure to store client information
+    client_address_size = sizeof client_address;
+
+    //Variable to assign ids for each player connected
+    int idCount = 1; 
 
     while (1)
     {
-        // if(interrupt_exit) {
-        //     printf("Interrupted\n");
-        //     break;
-        // } 
 
-        // poll_response = poll(test_fds, 1, timeout);
-        // if (poll_response == 0)
-        // {
-        //     printf(". ");
-        //     fflush(stdout);
-        // }
-        // else if (poll_response > 0) //if something was received
-        // {
-            client_address_size = sizeof client_address;
-
-            // ACCEPT
-            // Wait for a client connection
-            client_fd = accept(server_fd, (struct sockaddr *)&client_address, &client_address_size);
-            if (client_fd == -1)
+        while (!interrupt_exit)
+        {
+            poll_response = poll(test_fds, 1, timeout);
+            if (poll_response == 0)
             {
-                perror("ERROR: accept");
-                close(client_fd);
+                fflush(stdout);
             }
-            
-            // Get the data from the client
-            inet_ntop(client_address.sin_family, &client_address.sin_addr, client_presentation, sizeof client_presentation);
-            printf("Received incomming connection from %s on port %d\n", client_presentation, client_address.sin_port);
-
-            printf("CLIENT_FD: %d\n", client_fd);
-            pthread_t tid;
-            thread_data_t * connection_data = NULL;
-            connection_data = malloc (sizeof (thread_data_t));
-            // Prepare the structure to send to the thread
-            connection_data->connection_fd = client_fd;
-            connection_data->viuda_data = viuda_data;
-            connection_data->playerId = idCount;
-            
-            // CREATE A THREAD
-            status = pthread_create(&tid, NULL, attentionThread, connection_data);
-
-            if (status == -1)
+            else if (poll_response > 0)
             {
-                perror("ERROR: pthread_create");
-                close(client_fd);
-            }else {
-                idCount++;
+                // Receive the request
+                if(test_fds[0].revents & POLLIN){
+                    // ACCEPT
+                    // Wait for a client connection
+                    client_fd = accept(server_fd, (struct sockaddr *)&client_address, &client_address_size);
+                    break;
+                }
             }
-        // }
-        // else
-        // {
-        //     if (errno == EINTR) // if the poll gets interrupted, break while
-        //     {
-        //         printf("Error Interrupt\n");
-        //         break;
-                
-        //     }
-        //     else
-        //     {
-        //         perror("ERROR: poll");
-        //         exit(EXIT_FAILURE);
-        //     }
-        // }
+            else
+            {
+                if (errno == EINTR)
+                {
+                    break;
+                }
+                else
+                {
+                    perror("ERROR: poll");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+            
+        // Get the data from the client
+        inet_ntop(client_address.sin_family, &client_address.sin_addr, client_presentation, sizeof client_presentation);
+        printf("Received incomming connection from %s on port %d\n", client_presentation, client_address.sin_port);
+
+        printf("CLIENT_FD: %d\n", client_fd);
+        pthread_t tid;
+        thread_data_t * connection_data = NULL;
+        connection_data = malloc (sizeof (thread_data_t));
+        // Prepare the structure to send to the thread
+        connection_data->connection_fd = client_fd;
+        connection_data->viuda_data = viuda_data;
+        connection_data->playerId = idCount;
+        
+        // CREATE A THREAD
+        int created_thread = pthread_create(&tid, NULL, attentionThread, connection_data);
+
+        if (created_thread != 0)
+        {
+            perror("ERROR: pthread_create");
+        }else {
+            idCount++;
+        }
+
+
     }
-    // Show the number of total transactions
-    // printf("Transactions made: %d\n", bank_data->total_transactions);
 
-    // free(connection_data);
+    //close descriptors
+    close(client_fd);
+    close(connection_data->connection_fd);
 
-    // Store any changes in the file
-    // storeChanges(bank_data);
+    //join threads
+    pthread_join(new_tid, NULL);
+
+    free(connection_data);
 }
 
 /*
@@ -434,241 +404,283 @@ void waitForConnections(int server_fd, viuda_t * viuda_data)
 void * attentionThread(void * arg)
 {  
     // Receive the data for the bank, mutexes and socket file descriptor
-    thread_data_t * info = arg;
+    thread_data_t * info = (thread_data_t *)arg;
     int round = 0;
+    int connection;
     printf("\nSTARTED THREAD WITH CONNECTION: %d\n", info->connection_fd);
-    // response_t response;
-    // // Create a structure array to hold the file descriptors to poll
-    // struct pollfd test_fds[1];
-    // // Fill in the structure
-    // test_fds[0].fd = info->connection_fd;
-    // test_fds[0].events = POLLIN;    // Check for incomming data
-    // int poll_response;
-    // int timeout = 500;
-
-    recvData(info->connection_fd, &info->message, sizeof info->message); //receive PLAY
-    // Validate that the client corresponds to this server
-    if (info->message.msg_code != PLAY)
-    {
-        printf("Error: unrecognized client\n");
-        send(info->connection_fd, &info->message, sizeof info->message, 0);
-        pthread_exit(NULL);
-    } else {
-        info->viuda_data->numPlayers++;
-    }
-
-    if(info->viuda_data->gameStatus == START){ //Game already started
-        printf("Rejected client, the game has already started.\n");
-        info->message.msg_code = FULL;
-        info->viuda_data->numPlayers--;
-        send(info->connection_fd, &info->message, sizeof info->message, 0);
-        close(info->connection_fd);
-        pthread_exit(NULL);
-    }
-
-    if(info->viuda_data->numPlayers>MAX_PLAYERS){  //Check if the maximum players (8) has been reached
-        printf("Rejected client, there are already 8 players.\n");
-        info->message.msg_code = FULL;
-        info->viuda_data->numPlayers--;
-        send(info->connection_fd, &info->message, sizeof info->message, 0);
-        close(info->connection_fd);
-        pthread_exit(NULL);
-    }
-
-    // Prepare a reply
-    info->message.msg_code = AMOUNT;
-    send(info->connection_fd, &info->message, sizeof info->message, 0);
-
-    // Get the reply and validate again, receives AMOUNT
-    recvData(info->connection_fd, &info->message, sizeof info->message);
-    if (info->message.msg_code != AMOUNT)
-    {
-        printf("Error: unrecognized client\n");
-        close(info->connection_fd);
-        pthread_exit(NULL);
-    }
-
-    printf("The starting amount of the player is: %d\n", info->message.playerAmount);
-
-    if((info->viuda_data->lowestAmount > info->message.playerAmount) || (info->viuda_data->lowestAmount == 0)) {
-        info->viuda_data->lowestAmount = info->message.playerAmount;
-    }
-
-    printf("The players can bet at most %d.\n", info->viuda_data->lowestAmount);
-
-    //add player to players array
-    addNewPlayer(info->playerId, info->viuda_data);
-
-    printf("Checking if the player is ready to start.\n");
-
-    send(info->connection_fd, &info->message, sizeof info->message, 0);
-
-    recvData(info->connection_fd, &info->message, sizeof info->message);
-
-    //Conditional variable to know if all the players are ready to play
-    if(info->message.theStatus == LOBBY) {
-        pthread_mutex_lock(&ready_mutex);
-          info->viuda_data->playersReady++;
-          if (info->viuda_data->playersReady == info->viuda_data->numPlayers){
-              info->viuda_data->gameStatus = START;
-              assignTurns(info->viuda_data->players_array, info->viuda_data->numPlayers); //Put all the players at the beginning of the array so it is filled without empty spaces
-              for(int i =0 ; i<info->viuda_data->numPlayers; i++){
-                printf("PLAYER INFO: %d, Connected: %d, %d\n", info->viuda_data->players_array[i].id, info->viuda_data->players_array[i].connected, i);
-              }
-              printf("TESTING\n");
-              pthread_cond_broadcast(&start_condition);
-          } 
-        pthread_mutex_unlock(&ready_mutex);
-    }
-
-    pthread_mutex_lock(&ready_mutex);
-          while (info->viuda_data->playersReady < info->viuda_data->numPlayers) { //Do nothing (wait for this to be false)
-                pthread_cond_wait(&start_condition, &ready_mutex);
-          }
-          info->message.lowestAmount = info->viuda_data->lowestAmount;
-          printf("ESTABLISH LOWEST AMOUNT %d FOR THREAD WITH CONNECTION: %d", info->message.lowestAmount, info->connection_fd);
-          
-    pthread_mutex_unlock(&ready_mutex);
-
-    // Prepare a reply
-    info->message.playerStatus = START;
-    info->message.dealerStatus = START;
-
-    // printf("\tRunning thread with connection_fd: %d\n", info->connection_fd);
+    //response_t response;
+    // Create a structure array to hold the file descriptors to poll
+    struct pollfd poll_test[1];
+    // Fill in the structure
+    poll_test[0].fd = info->connection_fd;      // File descriptor for client
+    poll_test[0].events = POLLIN;
+    int timeout = 0;        // Time in milliseconds
+    int poll_result;
+    
 
     // Loop to listen for messages from the client
-    while(info->message.playerAmount >= 2){
-
-        round++;
-
-        printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
-
-        // if(interrupt_exit) {
-        //     printf("Interrupted\n");
-        //     break;
-        // } 
-
-        // poll_response = poll(test_fds, 1, timeout);
-        // if (poll_response == 0)
-        // {
-        //     printf(". ");
-        //     fflush(stdout);
-        // }
-        // else if (poll_response > 0) //if something was received
-        // {
-
-            pthread_mutex_lock(&bets_mutex);
-                while (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id != info->playerId){ 
-                        pthread_cond_wait(&getBets_condition, &bets_mutex);
-                }
-
-                //Get the bet and player status from the client
-                printf("\n/////Getting player %d bet/////\n", info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id);
-                printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
-                send(info->connection_fd, &info->message, sizeof info->message, 0);
-                // Receive the request
-                if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
-                    pthread_exit(NULL);
-                    // return;
-                }
-                info->viuda_data->prize += info->message.playerBet;
-                printf("The bet of the player is: %d\n", info->message.playerBet);    
-            pthread_mutex_unlock(&bets_mutex);
-
-            //Conditional variable to know the turn of the player to play
-            pthread_mutex_lock(&bets_mutex);
-            printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id, info->viuda_data->index_playerInTurn, info->playerId);
-                if (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id == info->playerId){
-                    printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
-                    pthread_mutex_lock(&betsReady_mutex);
-                    printf("info->viuda_data->index_playerInTurn: %d\n", info->viuda_data->index_playerInTurn);
-                    info->viuda_data->index_playerInTurn++;
-                    if (info->viuda_data->index_playerInTurn == info->viuda_data->numPlayers){
-                        printf("The prize for the winner is: %d\n", info->viuda_data->prize);
-                        dealCards(info->viuda_data);
-                        chooseViuda(info->viuda_data);
-                        pthread_cond_broadcast(&betsReady_condition);
-                    } 
-                    pthread_mutex_unlock(&betsReady_mutex);
-                    printf("UNLOCKED\n");
-                    pthread_cond_broadcast(&getBets_condition);
-                } 
-            pthread_mutex_unlock(&bets_mutex);
-
-            pthread_mutex_lock(&betsReady_mutex);
-                while (info->viuda_data->index_playerInTurn < info->viuda_data->numPlayers){ //Do nothing (wait for ths to be false)
-                        pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
-                }
-            pthread_mutex_unlock(&betsReady_mutex);                 
-            
-            
-            completeFirstDeal(&info->message, info->connection_fd); //Generates the first 2 cards of the Player and Dealer
-
-            if((info->message.dealerStatus != NATURAL) && (info->message.playerStatus != NATURAL)){ // if no one got a natural blackjack
-                printf("\n/////PLAYER'S TURN/////\n");
-                playerTurn(&info->message, info->connection_fd); //Update player info based on the options chosen by the user
-
-                //Calculate dealers hands and total accumulated
-                printf("\n/////DEALER'S TURN/////\n");
-                dealerTurn(&info->message, info->connection_fd); //Update dealer's info when player's turn is over
-            }
-
-            //Take decision based on the status 
-            printf("\n/////TAKING DECISION BASED ON THE STATUS/////\n");
-            calculateResults(&info->message);
-
-            if(info->message.playerAmount < 2){ //The client disconnects when the player doesn't have enough chips
-                printf("The player doesn't have enough money to keep playing. The player will exit now.\n");
-            } 
-
-            send(info->connection_fd, &info->message, sizeof info->message, 0);
-
-
-    //         // Update the number of transactions
-    //         if(response == OK){
-    //             pthread_mutex_lock(&info->data_locks->transactions_mutex);
-    //             info->bank_data->total_transactions++;
-    //             pthread_mutex_unlock(&info->data_locks->transactions_mutex);
-    //         } else if(response == NO_ACCOUNT){
-    //             printf("Invalid acount number received.\n");
-    //         }
-
-    //         // Prepare the message to the client
-    //         sprintf(buffer, "%d %f", response, balance);
-
-    //         // Send a reply
-    //         sendData(info->connection_fd, buffer, strlen(buffer)+1);
-    //     }
-    //     else
-    //     {
-    //         if (errno == EINTR) // if the poll gets interrupted, break while
-    //         {
-    //             printf("Error Interrupt\n");
-    //             break;
-                
-    //         }
-    //         else
-    //         {
-    //             perror("ERROR: poll");
-    //             exit(EXIT_FAILURE);
-    //         }
-    //     }
-    }
-
-    printf("SALIOO\n");
-
-    printf("\nENDING THREAD WITH CONNECTION: %d\n", info->connection_fd);
-
-    // Finish the connection
-    if (!recvData(info->connection_fd, &info->message, sizeof info->message))
+    while(1)
     {
-        printf("DENTRO DE FUNCION\n");
-        printf("Client disconnected\n");
-    }
-    info->message.msg_code = BYE;
-    send(info->connection_fd, &info->message, sizeof info->message, 0);
-    close(info->connection_fd);
+        //poll for recieving data
+        while (!interrupt_exit)
+        {
+            poll_result = poll(poll_test, 1, timeout);
+            if (poll_result == 0)
+            {
+                fflush(stdout);
+            }
+            else if (poll_result > 0)
+            {
+                // Receive the request
+                if(poll_test[0].revents & POLLIN){
+                    connection = recvData(info->connection_fd, &info->message, sizeof info->message); //receive PLAY
+                    break;
+                }
+            }
+            else
+            {
+                if (errno == EINTR)
+                {
+                    break;
+                }
+                else
+                {
+                    perror("ERROR: poll");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
 
+        if(interrupt_exit == 1){
+            break;
+        }
+
+        if(connection == 0){
+            break;
+        }
+    
+        // Validate that the client corresponds to this server
+        if (info->message.msg_code != PLAY)
+        {
+            printf("Error: unrecognized client\n");
+            send(info->connection_fd, &info->message, sizeof info->message, 0);
+            pthread_exit(NULL);
+        } else {
+            info->viuda_data->numPlayers++;
+        }
+
+        if(info->viuda_data->gameStatus == START){ //Game already started
+            printf("Rejected client, the game has already started.\n");
+            info->message.msg_code = FULL;
+            info->viuda_data->numPlayers--;
+            send(info->connection_fd, &info->message, sizeof info->message, 0);
+            close(info->connection_fd);
+            pthread_exit(NULL);
+        }
+
+        if(info->viuda_data->numPlayers>MAX_PLAYERS){  //Check if the maximum players (8) has been reached
+            printf("Rejected client, there are already 8 players.\n");
+            info->message.msg_code = FULL;
+            info->viuda_data->numPlayers--;
+            send(info->connection_fd, &info->message, sizeof info->message, 0);
+            close(info->connection_fd);
+            pthread_exit(NULL);
+        }
+
+        // Prepare a reply
+        info->message.msg_code = AMOUNT;
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+        // Get the reply and validate again, receives AMOUNT
+        recvData(info->connection_fd, &info->message, sizeof info->message);
+        if (info->message.msg_code != AMOUNT)
+        {
+            printf("Error: unrecognized client\n");
+            close(info->connection_fd);
+            pthread_exit(NULL);
+        }
+
+        printf("The starting amount of the player is: %d\n", info->message.playerAmount);
+
+        if((info->viuda_data->lowestAmount > info->message.playerAmount) || (info->viuda_data->lowestAmount == 0)) {
+            info->viuda_data->lowestAmount = info->message.playerAmount;
+        }
+
+        printf("The players can bet at most %d.\n", info->viuda_data->lowestAmount);
+
+        //add player to players array
+        addNewPlayer(info->playerId, info->viuda_data);
+
+        printf("Checking if the player is ready to start.\n");
+
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+        recvData(info->connection_fd, &info->message, sizeof info->message);
+
+        //Conditional variable to know if all the players are ready to play
+        if(info->message.theStatus == LOBBY) {
+            pthread_mutex_lock(&ready_mutex);
+            info->viuda_data->playersReady++;
+            if (info->viuda_data->playersReady == info->viuda_data->numPlayers){
+                info->viuda_data->gameStatus = START;
+                assignTurns(info->viuda_data->players_array, info->viuda_data->numPlayers); //Put all the players at the beginning of the array so it is filled without empty spaces
+                for(int i =0 ; i<info->viuda_data->numPlayers; i++){
+                    printf("PLAYER INFO: %d, Connected: %d, %d\n", info->viuda_data->players_array[i].id, info->viuda_data->players_array[i].connected, i);
+                }
+                printf("TESTING\n");
+                pthread_cond_broadcast(&start_condition);
+            } 
+            pthread_mutex_unlock(&ready_mutex);
+        }
+
+        pthread_mutex_lock(&ready_mutex);
+            while (info->viuda_data->playersReady < info->viuda_data->numPlayers) { //Do nothing (wait for this to be false)
+                    pthread_cond_wait(&start_condition, &ready_mutex);
+            }
+            info->message.lowestAmount = info->viuda_data->lowestAmount;
+            printf("ESTABLISH LOWEST AMOUNT %d FOR THREAD WITH CONNECTION: %d", info->message.lowestAmount, info->connection_fd);
+            
+        pthread_mutex_unlock(&ready_mutex);
+
+        // Prepare a reply
+        info->message.playerStatus = START;
+        info->message.dealerStatus = START;
+
+        // printf("\tRunning thread with connection_fd: %d\n", info->connection_fd);
+
+        // Loop to listen for messages from the client
+        while(info->message.playerAmount >= 2){
+
+            round++;
+
+            printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
+
+            // if(interrupt_exit) {
+            //     printf("Interrupted\n");
+            //     break;
+            // } 
+
+            // poll_response = poll(test_fds, 1, timeout);
+            // if (poll_response == 0)
+            // {
+            //     printf(". ");
+            //     fflush(stdout);
+            // }
+            // else if (poll_response > 0) //if something was received
+            // {
+
+                pthread_mutex_lock(&bets_mutex);
+                    while (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id != info->playerId){ 
+                            pthread_cond_wait(&getBets_condition, &bets_mutex);
+                    }
+
+                    //Get the bet and player status from the client
+                    printf("\n/////Getting player %d bet/////\n", info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id);
+                    printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
+                    send(info->connection_fd, &info->message, sizeof info->message, 0);
+                    // Receive the request
+                    if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
+                        pthread_exit(NULL);
+                        // return;
+                    }
+                    info->viuda_data->prize += info->message.playerBet;
+                    printf("The bet of the player is: %d\n", info->message.playerBet);    
+                pthread_mutex_unlock(&bets_mutex);
+
+                //Conditional variable to know the turn of the player to play
+                pthread_mutex_lock(&bets_mutex);
+                printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id, info->viuda_data->index_playerInTurn, info->playerId);
+                    if (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id == info->playerId){
+                        printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
+                        pthread_mutex_lock(&betsReady_mutex);
+                        printf("info->viuda_data->index_playerInTurn: %d\n", info->viuda_data->index_playerInTurn);
+                        info->viuda_data->index_playerInTurn++;
+                        if (info->viuda_data->index_playerInTurn == info->viuda_data->numPlayers){
+                            printf("The prize for the winner is: %d\n", info->viuda_data->prize);
+                            dealCards(info->viuda_data);
+                            chooseViuda(info->viuda_data);
+                            pthread_cond_broadcast(&betsReady_condition);
+                        } 
+                        pthread_mutex_unlock(&betsReady_mutex);
+                        printf("UNLOCKED\n");
+                        pthread_cond_broadcast(&getBets_condition);
+                    } 
+                pthread_mutex_unlock(&bets_mutex);
+
+                pthread_mutex_lock(&betsReady_mutex);
+                    while (info->viuda_data->index_playerInTurn < info->viuda_data->numPlayers){ //Do nothing (wait for ths to be false)
+                            pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
+                    }
+                pthread_mutex_unlock(&betsReady_mutex);                 
+                
+                
+                completeFirstDeal(&info->message, info->connection_fd); //Generates the first 2 cards of the Player and Dealer
+
+                if((info->message.dealerStatus != NATURAL) && (info->message.playerStatus != NATURAL)){ // if no one got a natural blackjack
+                    printf("\n/////PLAYER'S TURN/////\n");
+                    playerTurn(&info->message, info->connection_fd); //Update player info based on the options chosen by the user
+
+                    //Calculate dealers hands and total accumulated
+                    printf("\n/////DEALER'S TURN/////\n");
+                    dealerTurn(&info->message, info->connection_fd); //Update dealer's info when player's turn is over
+                }
+
+                //Take decision based on the status 
+                printf("\n/////TAKING DECISION BASED ON THE STATUS/////\n");
+                calculateResults(&info->message);
+
+                if(info->message.playerAmount < 2){ //The client disconnects when the player doesn't have enough chips
+                    printf("The player doesn't have enough money to keep playing. The player will exit now.\n");
+                } 
+
+                send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+
+        //         // Update the number of transactions
+        //         if(response == OK){
+        //             pthread_mutex_lock(&info->data_locks->transactions_mutex);
+        //             info->bank_data->total_transactions++;
+        //             pthread_mutex_unlock(&info->data_locks->transactions_mutex);
+        //         } else if(response == NO_ACCOUNT){
+        //             printf("Invalid acount number received.\n");
+        //         }
+
+        //         // Prepare the message to the client
+        //         sprintf(buffer, "%d %f", response, balance);
+
+        //         // Send a reply
+        //         sendData(info->connection_fd, buffer, strlen(buffer)+1);
+        //     }
+        //     else
+        //     {
+        //         if (errno == EINTR) // if the poll gets interrupted, break while
+        //         {
+        //             printf("Error Interrupt\n");
+        //             break;
+                    
+        //         }
+        //         else
+        //         {
+        //             perror("ERROR: poll");
+        //             exit(EXIT_FAILURE);
+        //         }
+        //     }
+        }
+
+        printf("SALIOO\n");
+
+        printf("\nENDING THREAD WITH CONNECTION: %d\n", info->connection_fd);
+
+        // Finish the connection
+        if (!recvData(info->connection_fd, &info->message, sizeof info->message))
+        {
+            printf("DENTRO DE FUNCION\n");
+            printf("Client disconnected\n");
+        }
+        info->message.msg_code = BYE;
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+        close(info->connection_fd);
+    }
     pthread_exit(NULL);
 }
 
