@@ -22,13 +22,14 @@
 #include <time.h>
 
 // Custom libraries
-#include "codes.h"
+#include "whiskey.h"
 #include "sockets.h"
+
 
 #define MAX_ACCOUNTS 5
 #define BUFFER_SIZE 1024
 #define MAX_QUEUE 5
-#define MAX_PLAYERS 8
+
 
 ///// Structure definitions
 
@@ -47,18 +48,6 @@ typedef struct bank_struct {
     account_t * account_array;
 } bank_t;
 
-typedef enum {
-    Nothing,
-    OnePair,
-    TwoPairs,
-    ThreeKind,
-    Straight,
-    Flush,
-    FullHouse,
-    FourKind,
-    StraightFlush,
-    RoyalFlush
-} hand_ranking_t;
 
 
 
@@ -72,54 +61,7 @@ typedef enum {
 //     locks_t * data_locks;
 // } thread_data_t;
 
-typedef struct card_struct { //Main structure for status of the game
-    char rank[3];
-    int rank_value;
-    char suit[9];
-    int suit_value;
-    int used;
-} card_t;
 
-typedef struct hand_struct {
-
-    card_t cards[5];
-    int type;
-    int total_value;
-    char high_card_rank[3];
-    int high_card_value;
-
-} hand_t;
-
-// Data for a single player
-typedef struct player_struct {
-    int id;
-    int connected;
-    int lost;
-    int status;
-    int bet;
-    hand_t hand;
-    // card_t cards[5];
-    // int hand_value;
-    // char high_card_rank[3];
-    // int high_card_value;
-} player_t;
-
-typedef struct viuda_struct { //Main structure for status of the game
-
-    int gameBet;
-    int betAgreement; // Tells if all the players agreed on the bet 
-    int lowestAmount; // The lowest amount given by the players
-    int prize; //The amount to give to the winner
-	hand_t table_hand;
-    int numPlayers; // Number of players to start playing the game
-    player_t * players_array;
-	int playerInTurn; //id of player in turn
-    int index_playerInTurn; //id of player in turn
-    int winner;
-    int playersReady;
-    int gameStatus;
-
-} viuda_t;
 
 // Data that will be sent to each thread
 typedef struct data_struct {
@@ -130,7 +72,7 @@ typedef struct data_struct {
     // int agreeBet;
     // // A pointer to a bank data structure
     // bank_t * bank_data;
-    viuda_t * viuda_data;
+    whiskey_t * whiskey_data;
     // // A pointer to a locks structure
     // locks_t * data_locks;
 } thread_data_t;
@@ -154,28 +96,14 @@ void detectInterruption(int signal);
 // void initBank(bank_t * bank_data, locks_t * data_locks);
 // void readBankFile(bank_t * bank_data);
 // void waitForConnections(int server_fd, bank_t * bank_data, locks_t * data_locks);
-void initGame(viuda_t * viuda_data);
-void waitForConnections(int server_fd, viuda_t * viuda_data);
+
+void waitForConnections(int server_fd, whiskey_t * whiskey_data);
 void * attentionThread(void * arg);
-void addNewPlayer(int playerId, viuda_t * viuda_data);
+
 // void closeBank(bank_t * bank_data, locks_t * data_locks);
 int checkValidAccount(int account);
 void storeChanges(bank_t * bank_data);
 void completeFirstDeal(message_t * message, int connection_fd);
-void assignTurns(player_t * players_array, int numPlayers);
-void dealCards(viuda_t * viuda_data);
-void sortCardsByRank(hand_t * hand);
-void sortCardsBySuit(card_t cards[5]);
-void evaluateHand(hand_t * hand);
-int hasFourOfaKind(hand_t * hand);
-int isFullHouse(hand_t * hand);
-int isFlush(hand_t * hand);
-int isStraight(hand_t * hand);
-int hasThreeOfaKind(hand_t * hand);
-int hasTwoPairs(hand_t * hand);
-int hasOnePair(hand_t * hand);
-void chooseViuda(viuda_t *viuda_data);
-hand_t compareHands(hand_t hand, hand_t other_hand);
 
 /*
     TODO: Add your function declarations here
@@ -192,7 +120,7 @@ int main(int argc, char * argv[])
     // bank_t bank_data;
     // locks_t data_locks;
 
-    viuda_t viuda_data;
+    whiskey_t whiskey_data;
 
     printf("\n=== SERVER PROGRAM ===\n");
 
@@ -207,7 +135,7 @@ int main(int argc, char * argv[])
 
     // Initialize the data structures
     // initBank(&bank_data, &data_locks);
-    initGame(&viuda_data);
+    initGame(&whiskey_data);
 
 	// Show the IPs assigned to this computer
 	printLocalIPs();
@@ -215,7 +143,7 @@ int main(int argc, char * argv[])
     server_fd = initServer(argv[1], MAX_QUEUE);
 	// Listen for connections from the clients
     // waitForConnections(server_fd, &bank_data, &data_locks);
-    waitForConnections(server_fd, &viuda_data);
+    waitForConnections(server_fd, &whiskey_data);
 
     printf("Closing the server socket\n");
     // Close the socket
@@ -305,7 +233,7 @@ void setupHandlers()
     Main loop to wait for incomming connections
 */
 // void waitForConnections(int server_fd, bank_t * bank_data, locks_t * data_locks)
-void waitForConnections(int server_fd, viuda_t * viuda_data)
+void waitForConnections(int server_fd, whiskey_t * whiskey_data)
 {
     struct sockaddr_in client_address;
     socklen_t client_address_size;
@@ -372,7 +300,7 @@ void waitForConnections(int server_fd, viuda_t * viuda_data)
         connection_data = malloc (sizeof (thread_data_t));
         // Prepare the structure to send to the thread
         connection_data->connection_fd = client_fd;
-        connection_data->viuda_data = viuda_data;
+        connection_data->whiskey_data = whiskey_data;
         connection_data->playerId = idCount;
         
         // CREATE A THREAD
@@ -466,22 +394,22 @@ void * attentionThread(void * arg)
             send(info->connection_fd, &info->message, sizeof info->message, 0);
             pthread_exit(NULL);
         } else {
-            info->viuda_data->numPlayers++;
+            info->whiskey_data->numPlayers++;
         }
 
-        if(info->viuda_data->gameStatus == START){ //Game already started
+        if(info->whiskey_data->gameStatus == START){ //Game already started
             printf("Rejected client, the game has already started.\n");
             info->message.msg_code = FULL;
-            info->viuda_data->numPlayers--;
+            info->whiskey_data->numPlayers--;
             send(info->connection_fd, &info->message, sizeof info->message, 0);
             close(info->connection_fd);
             pthread_exit(NULL);
         }
 
-        if(info->viuda_data->numPlayers>MAX_PLAYERS){  //Check if the maximum players (8) has been reached
+        if(info->whiskey_data->numPlayers>MAX_PLAYERS){  //Check if the maximum players (8) has been reached
             printf("Rejected client, there are already 8 players.\n");
             info->message.msg_code = FULL;
-            info->viuda_data->numPlayers--;
+            info->whiskey_data->numPlayers--;
             send(info->connection_fd, &info->message, sizeof info->message, 0);
             close(info->connection_fd);
             pthread_exit(NULL);
@@ -502,14 +430,14 @@ void * attentionThread(void * arg)
 
         printf("The starting amount of the player is: %d\n", info->message.playerAmount);
 
-        if((info->viuda_data->lowestAmount > info->message.playerAmount) || (info->viuda_data->lowestAmount == 0)) {
-            info->viuda_data->lowestAmount = info->message.playerAmount;
+        if((info->whiskey_data->lowestAmount > info->message.playerAmount) || (info->whiskey_data->lowestAmount == 0)) {
+            info->whiskey_data->lowestAmount = info->message.playerAmount;
         }
 
-        printf("The players can bet at most %d.\n", info->viuda_data->lowestAmount);
+        printf("The players can bet at most %d.\n", info->whiskey_data->lowestAmount);
 
         //add player to players array
-        addNewPlayer(info->playerId, info->viuda_data);
+        addNewPlayer(info->playerId, info->whiskey_data);
 
         printf("Checking if the player is ready to start.\n");
 
@@ -520,12 +448,12 @@ void * attentionThread(void * arg)
         //Conditional variable to know if all the players are ready to play
         if(info->message.theStatus == LOBBY) {
             pthread_mutex_lock(&ready_mutex);
-            info->viuda_data->playersReady++;
-            if (info->viuda_data->playersReady == info->viuda_data->numPlayers){
-                info->viuda_data->gameStatus = START;
-                assignTurns(info->viuda_data->players_array, info->viuda_data->numPlayers); //Put all the players at the beginning of the array so it is filled without empty spaces
-                for(int i =0 ; i<info->viuda_data->numPlayers; i++){
-                    printf("PLAYER INFO: %d, Connected: %d, %d\n", info->viuda_data->players_array[i].id, info->viuda_data->players_array[i].connected, i);
+            info->whiskey_data->playersReady++;
+            if (info->whiskey_data->playersReady == info->whiskey_data->numPlayers){
+                info->whiskey_data->gameStatus = START;
+                assignTurns(info->whiskey_data->players_array, info->whiskey_data->numPlayers); //Put all the players at the beginning of the array so it is filled without empty spaces
+                for(int i =0 ; i<info->whiskey_data->numPlayers; i++){
+                    printf("PLAYER INFO: %d, Connected: %d, %d\n", info->whiskey_data->players_array[i].id, info->whiskey_data->players_array[i].connected, i);
                 }
                 printf("TESTING\n");
                 pthread_cond_broadcast(&start_condition);
@@ -534,10 +462,10 @@ void * attentionThread(void * arg)
         }
 
         pthread_mutex_lock(&ready_mutex);
-            while (info->viuda_data->playersReady < info->viuda_data->numPlayers) { //Do nothing (wait for this to be false)
+            while (info->whiskey_data->playersReady < info->whiskey_data->numPlayers) { //Do nothing (wait for this to be false)
                     pthread_cond_wait(&start_condition, &ready_mutex);
             }
-            info->message.lowestAmount = info->viuda_data->lowestAmount;
+            info->message.lowestAmount = info->whiskey_data->lowestAmount;
             printf("ESTABLISH LOWEST AMOUNT %d FOR THREAD WITH CONNECTION: %d", info->message.lowestAmount, info->connection_fd);
             
         pthread_mutex_unlock(&ready_mutex);
@@ -570,12 +498,12 @@ void * attentionThread(void * arg)
             // {
 
                 pthread_mutex_lock(&bets_mutex);
-                    while (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id != info->playerId){ 
+                    while (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id != info->playerId){ 
                             pthread_cond_wait(&getBets_condition, &bets_mutex);
                     }
 
                     //Get the bet and player status from the client
-                    printf("\n/////Getting player %d bet/////\n", info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id);
+                    printf("\n/////Getting player %d bet/////\n", info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id);
                     printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
                     send(info->connection_fd, &info->message, sizeof info->message, 0);
                     // Receive the request
@@ -583,22 +511,22 @@ void * attentionThread(void * arg)
                         pthread_exit(NULL);
                         // return;
                     }
-                    info->viuda_data->prize += info->message.playerBet;
+                    info->whiskey_data->prize += info->message.playerBet;
                     printf("The bet of the player is: %d\n", info->message.playerBet);    
                 pthread_mutex_unlock(&bets_mutex);
 
                 //Conditional variable to know the turn of the player to play
                 pthread_mutex_lock(&bets_mutex);
-                printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id, info->viuda_data->index_playerInTurn, info->playerId);
-                    if (info->viuda_data->players_array[info->viuda_data->index_playerInTurn].id == info->playerId){
+                printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
+                    if (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id == info->playerId){
                         printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
                         pthread_mutex_lock(&betsReady_mutex);
-                        printf("info->viuda_data->index_playerInTurn: %d\n", info->viuda_data->index_playerInTurn);
-                        info->viuda_data->index_playerInTurn++;
-                        if (info->viuda_data->index_playerInTurn == info->viuda_data->numPlayers){
-                            printf("The prize for the winner is: %d\n", info->viuda_data->prize);
-                            dealCards(info->viuda_data);
-                            chooseViuda(info->viuda_data);
+                        printf("info->whiskey_data->index_playerInTurn: %d\n", info->whiskey_data->index_playerInTurn);
+                        info->whiskey_data->index_playerInTurn++;
+                        if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
+                            printf("The prize for the winner is: %d\n", info->whiskey_data->prize);
+                            dealCards(info->whiskey_data);
+                            choosewhiskey(info->whiskey_data);
                             pthread_cond_broadcast(&betsReady_condition);
                         } 
                         pthread_mutex_unlock(&betsReady_mutex);
@@ -608,7 +536,7 @@ void * attentionThread(void * arg)
                 pthread_mutex_unlock(&bets_mutex);
 
                 pthread_mutex_lock(&betsReady_mutex);
-                    while (info->viuda_data->index_playerInTurn < info->viuda_data->numPlayers){ //Do nothing (wait for ths to be false)
+                    while (info->whiskey_data->index_playerInTurn < info->whiskey_data->numPlayers){ //Do nothing (wait for ths to be false)
                             pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
                     }
                 pthread_mutex_unlock(&betsReady_mutex);                 
@@ -684,511 +612,8 @@ void * attentionThread(void * arg)
     pthread_exit(NULL);
 }
 
-void dealCards(viuda_t * viuda_data){
 
-    const char cardsArray[13][3]= {"A","2","3","4","5","6","7","8","9","10","J","Q","K"};
-    const int valuesArray[13]= {14,2,3,4,5,6,7,8,9,10,11,12,13};
-    const char suitsArray[4][9]= {"Hearts","Diamonds","Clubs","Spades"}; 
-    const int suitsValueArray[4]= {1, 2, 3,4};
-    card_t cards[52];
-    card_t random_card;
-    int random_number;
-    int counter = 0;
-    int given_cards;
-    srand(time(NULL));
 
-    for (int i = 0; i < 13; i++) {
-        for(int j = 0; j < 4; j++){
-            strcpy(cards[counter].rank, cardsArray[i]);
-            strcpy(cards[counter].suit, suitsArray[j]);
-            cards[counter].rank_value = valuesArray[i];
-            cards[counter].suit_value = suitsValueArray[j];
-            cards[counter].used = 0;
-            counter++;
-        }
-    }
-
-    //Print cards
-    for(int i = 0; i < 52; i++) {
-        printf("#%d, Card %s, Value %d, Suit %s, SuitValue %d Used? %d\n", i+1, cards[i].rank, cards[i].rank_value, cards[i].suit, cards[i].suit_value, cards[i].used);
-    }
-
-    //generate players cards
-    for(int i = 0; i<viuda_data->numPlayers; i++){
-        given_cards = 0;
-        while(given_cards < 5){
-            random_number = rand() % 52;
-            random_card = cards[random_number];
-            if(random_card.used){
-                continue;
-            } else {
-                strcpy(viuda_data->players_array[i].hand.cards[given_cards].rank, random_card.rank);
-                strcpy(viuda_data->players_array[i].hand.cards[given_cards].suit, random_card.suit);
-                viuda_data->players_array[i].hand.cards[given_cards].rank_value = cards[random_number].rank_value;
-                viuda_data->players_array[i].hand.cards[given_cards].suit_value = cards[random_number].suit_value;
-                cards[random_number].used = 1;
-                given_cards++;
-            }
-        }
-    }
-
-    //generate table cards
-    given_cards = 0;
-    while(given_cards < 5){
-        //generate table cards
-        random_number = rand() % 52;
-        random_card = cards[random_number];
-        if(random_card.used){
-            continue;
-        } else {
-            strcpy(viuda_data->table_hand.cards[given_cards].rank, random_card.rank);
-            strcpy(viuda_data->table_hand.cards[given_cards].suit, random_card.suit);
-            viuda_data->table_hand.cards[given_cards].rank_value = random_card.rank_value;
-            viuda_data->table_hand.cards[given_cards].suit_value = random_card.suit_value;
-            cards[random_number].used = 1;
-            given_cards++;
-        }
-    }
-
-    //print player cards
-    for(int i = 0; i<((viuda_data->numPlayers) + 1); i++){
-        if(i == viuda_data->numPlayers){
-            printf("Table cards:\n");
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue: %d, Value %d\n", viuda_data->table_hand.cards[j].rank, viuda_data->table_hand.cards[j].suit, viuda_data->table_hand.cards[j].suit_value, viuda_data->table_hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }else {
-            printf("Player: %d\n", viuda_data->players_array[i].id);
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue: %d, Value %d\n", viuda_data->players_array[i].hand.cards[j].rank, viuda_data->players_array[i].hand.cards[j].suit, viuda_data->players_array[i].hand.cards[j].suit_value, viuda_data->players_array[i].hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }
-    }
-
-    //Print cards
-    for(int i = 0; i < 52; i++) {
-        printf("#%d, Card %s, Suit %s, SuitValue: %d, Used? %d, Value %d\n", i+1, cards[i].rank, cards[i].suit, cards[i].suit_value, cards[i].used, cards[i].rank_value);
-    }
-
-    //print player cards
-    for(int i = 0; i<((viuda_data->numPlayers) + 1); i++){
-        if(i == viuda_data->numPlayers){
-            sortCardsByRank(&viuda_data->table_hand);
-        }else {
-            sortCardsByRank(&viuda_data->players_array[i].hand);
-        }
-    }
-
-    //print player cards
-    for(int i = 0; i<((viuda_data->numPlayers) + 1); i++){
-        if(i == viuda_data->numPlayers){
-            printf("Sorted Table cards:\n");
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue %d,Value %d\n", viuda_data->table_hand.cards[j].rank, viuda_data->table_hand.cards[j].suit, viuda_data->table_hand.cards[j].suit_value, viuda_data->table_hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }else {
-            printf("Sorted Player %d Cards\n", viuda_data->players_array[i].id);
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue %d, Value %d\n", viuda_data->players_array[i].hand.cards[j].rank, viuda_data->players_array[i].hand.cards[j].suit, viuda_data->players_array[i].hand.cards[j].suit_value, viuda_data->players_array[i].hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }
-    }
-
-    printf("\n\nTESTING EVALUATION \n\n");
-
-    for(int i = 0; i<((viuda_data->numPlayers) + 1); i++){
-        if(i == viuda_data->numPlayers){
-            
-            printf("Evaluated table\n");
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue %d,Value %d\n", viuda_data->table_hand.cards[j].rank, viuda_data->table_hand.cards[j].suit, viuda_data->table_hand.cards[j].suit_value, viuda_data->table_hand.cards[j].rank_value);
-            }
-            evaluateHand(&viuda_data->table_hand);
-            printf("Type: %d, Untie Value: %d, HighCardRank: %s,  HighCardValue: %d\n", viuda_data->table_hand.type, viuda_data->table_hand.total_value, viuda_data->table_hand.high_card_rank, viuda_data->table_hand.high_card_value);
-        }else {
-            
-            printf("Evaluated player %d \n", viuda_data->players_array[i].id);
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue %d, Value %d\n", viuda_data->players_array[i].hand.cards[j].rank, viuda_data->players_array[i].hand.cards[j].suit, viuda_data->players_array[i].hand.cards[j].suit_value, viuda_data->players_array[i].hand.cards[j].rank_value);
-            }
-            evaluateHand(&viuda_data->players_array[i].hand);
-            printf("Type: %d, Untie Value: %d, HighCardRank: %s,  HighCardValue: %d\n", viuda_data->players_array[i].hand.type, viuda_data->players_array[i].hand.total_value, viuda_data->players_array[i].hand.high_card_rank,viuda_data->players_array[i].hand.high_card_value);
-        }
-    }
-
-    compareHands(viuda_data->table_hand, viuda_data->players_array[0].hand);
-}
-
-void sortCardsByRank(hand_t * hand){
-
-    int min;
-    card_t temp;
-
-    for(int i = 0; i<5; i++){
-        min = i;
-        for(int j = i+1; j<5; j++){
-            if(hand->cards[min].rank_value>hand->cards[j].rank_value){
-                min = j;
-            }
-        }
-        temp = hand->cards[i];
-        hand->cards[i] = hand->cards[min];
-        hand->cards[min] = temp;
-    }
-
-}
-
-void sortCardsBySuit(card_t cards[5]){
-
-    int min;
-    card_t temp;
-
-    for(int i = 0; i<5; i++){
-        min = i;
-        for(int j = i+1; j<5; j++){
-            if(cards[min].suit_value>cards[j].suit_value){
-                min = j;
-            }
-        }
-        temp = cards[i];
-        cards[i] = cards[min];
-        cards[min] = temp;
-    }
-}
-
-hand_t compareHands(hand_t hand, hand_t other_hand){
-
-    if(hand.type > other_hand.type){
-        printf("The first hand provided is better.\n");
-        return hand;
-    }else if(hand.type < other_hand.type){
-        printf("The second hand provided is better.\n");
-        return other_hand;
-    } else { //If the hand types are equal
-        if(hand.total_value > other_hand.total_value){
-             printf("Both hands are of the same type but the first player has a higher total value.\n");
-             return hand;
-        }else if(hand.total_value < other_hand.total_value){
-             printf("Both hands are of the same type but the second player has a higher total value.\n");
-             return other_hand;
-        } else {        
-            printf("This is a draw, no one wins.\n");
-            return hand;
-        }
-    }
-
-}
-
-void chooseViuda (viuda_t *viuda_data){
-    
-    int option;
-    int chooseCard;
-    int chooseTableCard;
-    //full hand
-    hand_t playerHand = viuda_data->players_array[0].hand;
-    hand_t tableHand = viuda_data->table_hand;
-    hand_t temp;
-
-    //one card
-    card_t tempCard;
-
-    while(1){ //Keep asking for a valid bet
-            printf("Si quieres la viuda entera presiona 1, si quieres solo uan carta presiona 2\n");
-            scanf("%d", &option);
-            if(option == 1){
-                printf("Toma la viuda entera");
-                temp = playerHand;
-                playerHand = tableHand;
-                tableHand = temp;
-                viuda_data->table_hand = tableHand;
-                viuda_data->players_array[0].hand=playerHand;
-                break;
-            } 
-            else if(option == 2) {
-                while(1){
-                    printf("Escoge la carta que vas a cambiar: ");
-                    printf("Card 1 = %s %s\n",playerHand.cards[0].rank, playerHand.cards[0].suit);
-                    printf("Card 2 = %s %s\n",playerHand.cards[1].rank, playerHand.cards[1].suit);
-                    printf("Card 3 = %s %s\n",playerHand.cards[2].rank, playerHand.cards[2].suit);
-                    printf("Card 4 = %s %s\n",playerHand.cards[3].rank, playerHand.cards[3].suit);
-                    printf("Card 5 = %s %s\n",playerHand.cards[4].rank, playerHand.cards[4].suit);
-                    scanf("%d", &chooseCard);
-
-                    printf("Escoge una sola carta: ");
-                    printf("Card 1 = %s %s\n",tableHand.cards[0].rank, tableHand.cards[0].suit);
-                    printf("Card 2 = %s %s\n",tableHand.cards[1].rank, tableHand.cards[1].suit);
-                    printf("Card 3 = %s %s\n",tableHand.cards[2].rank, tableHand.cards[2].suit);
-                    printf("Card 4 = %s %s\n",tableHand.cards[3].rank, tableHand.cards[3].suit);
-                    printf("Card 5 = %s %s\n",tableHand.cards[4].rank, tableHand.cards[4].suit);
-                    scanf("%d", &chooseTableCard);
-                    
-                    if(chooseCard<1 || chooseCard>5 || chooseTableCard<1 || chooseTableCard>5){
-                        printf("Error choose a number between 1 and 5 \n");
-                    }
-                    else{
-                        tempCard = tableHand.cards[chooseTableCard-1];
-                        tableHand.cards[chooseTableCard-1] =playerHand.cards[chooseCard-1];
-                        playerHand.cards[chooseCard-1] = tempCard; 
-                        break;
-                    }
-                }
-                evaluateHand(&playerHand);
-                sortCardsByRank(&playerHand);
-                evaluateHand(&tableHand);
-                sortCardsByRank(&tableHand);
-                viuda_data->table_hand = tableHand;
-                viuda_data->players_array[0].hand=playerHand;
-                break;
-            }
-            else {
-               printf("Opcion no valida, vuelve a intentar");
-            }
-    }
-    for(int i = 0; i<((viuda_data->numPlayers) + 1); i++){
-        if(i == viuda_data->numPlayers){
-            printf("Changed Table cards:\n");
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue %d,Value %d\n", viuda_data->table_hand.cards[j].rank, viuda_data->table_hand.cards[j].suit, viuda_data->table_hand.cards[j].suit_value, viuda_data->table_hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }else {
-            printf("Changed Player %d Cards\n", viuda_data->players_array[i].id);
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue %d, Value %d\n", viuda_data->players_array[i].hand.cards[j].rank, viuda_data->players_array[i].hand.cards[j].suit, viuda_data->players_array[i].hand.cards[j].suit_value, viuda_data->players_array[i].hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }
-    }
-}
-
-void evaluateHand(hand_t * hand){
-
-    if((isFlush(hand) == 1) && (isStraight(hand) == 2)){
-        hand->type = RoyalFlush;
-    } else if((isFlush(hand) == 1) && (isStraight(hand) == 1)){
-        hand->type = StraightFlush;
-    } else if(hasFourOfaKind(hand) == 1){
-        hand->type = FourKind;
-    } else if (isFullHouse(hand) == 1){
-        hand->type = FullHouse;
-    } else if (isFlush(hand) == 1){
-        hand->type = Flush;
-    } else if ((isStraight(hand) == 1) || (isStraight(hand) == 2)){
-        hand->type = Straight;
-    } else if (hasThreeOfaKind(hand) == 1){
-        hand->type = ThreeKind;
-    } else if (hasTwoPairs(hand) == 1){
-        hand->type = TwoPairs;
-    } else if (hasOnePair(hand) == 1){
-        hand->type = OnePair;
-    } else {
-        hand->high_card_value = hand->cards[4].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[4].rank);
-        printf("SAL\n");
-        hand->type = Nothing;
-    }
-}
-
-int hasFourOfaKind(hand_t * hand){
-
-    if(hand->cards[0].rank_value  == hand->cards[3].rank_value)
-    {      
-        hand->total_value = hand->cards[0].rank_value * 4;
-        hand->high_card_value = hand->cards[4].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[4].rank);
-        return 1;
-    }
-    else if (hand->cards[1].rank_value == hand->cards[4].rank_value)
-    {
-        hand->total_value = hand->cards[1].rank_value * 4;
-        hand->high_card_value = hand->cards[0].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[0].rank);
-        return 1;
-    }
-
-    return 0;
-}
-
-int isFullHouse(hand_t * hand){
-    //xxxaa or aaxxx
-    if ((hand->cards[0].rank_value == hand->cards[1].rank_value && hand->cards[0].rank_value == hand->cards[2].rank_value && hand->cards[3].rank_value == hand->cards[4].rank_value) ||
-        (hand->cards[0].rank_value == hand->cards[1].rank_value && hand->cards[2].rank_value == hand->cards[3].rank_value && hand->cards[2].rank_value == hand->cards[4].rank_value))
-    {
-        hand->total_value = (hand->cards[0].rank_value) + (hand->cards[1].rank_value) + (hand->cards[2].rank_value) +
-            (hand->cards[3].rank_value) + (hand->cards[4].rank_value);
-        return 1;
-    }
-
-    return 0;
-}
-
-int isFlush(hand_t * hand){// All cards has same suit
-
-    card_t temp[5];
-
-    for(int j = 0; j<5; j++){
-        temp[j] = hand->cards[j];
-    }
-
-    sortCardsBySuit(temp);      // Sort the cards by the suit values
-
-   if(temp[0].suit_value == temp[4].suit_value ){
-       hand->total_value = temp[4].rank_value;
-       return 1;
-   }else {
-       return 0;
-   }
-}
-
-int isStraight(hand_t * hand){ 
-        //if 5 consecutive values
-        if ( hand->cards[4].rank_value == 14 ) //If the hand contains an A
-        {
-            if(hand->cards[0].rank_value == 2 && hand->cards[1].rank_value == 3 &&
-                hand->cards[2].rank_value == 4 && hand->cards[3].rank_value == 5){
-                    return 1;
-            }else if (hand->cards[0].rank_value == 10 && hand->cards[1].rank_value == 11 &&        
-                hand->cards[2].rank_value == 12 && hand->cards[3].rank_value == 13){
-                return 2;
-            } else {
-                return 0;
-            }
-        } else {
-            if(hand->cards[0].rank_value + 1 == hand->cards[1].rank_value  &&
-            hand->cards[1].rank_value  + 1 == hand->cards[2].rank_value  &&
-            hand->cards[2].rank_value  + 1 == hand->cards[3].rank_value  &&
-            hand->cards[3].rank_value  + 1 == hand->cards[4].rank_value )
-            {
-                //player with the highest value of the last card wins
-                hand->total_value = hand->cards[4].rank_value ;
-                return 1;
-            }else{
-                return 0;
-            }
-        }        
-}
-
-int hasThreeOfaKind(hand_t * hand){
-    //if the 1,2,3 cards are the same OR xxxab
-    //2,3,4 cards are the same OR  axxxb
-    //3,4,5 cards are the same  abxxx
-    //3rds card will always be a part of Three of A Kind
-    if ((hand->cards[0].rank_value == hand->cards[1].rank_value && hand->cards[0].rank_value == hand->cards[2].rank_value) ||
-    (hand->cards[1].rank_value == hand->cards[2].rank_value && hand->cards[1].rank_value == hand->cards[3].rank_value))
-    {
-        hand->total_value = hand->cards[2].rank_value * 3;
-        hand->high_card_value = hand->cards[4].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[4].rank);
-        return 1;
-    }
-    else if (hand->cards[2].rank_value == hand->cards[3].rank_value && hand->cards[2].rank_value == hand->cards[4].rank_value)
-    {
-        hand->total_value = hand->cards[2].rank_value * 3;
-        hand->high_card_value = hand->cards[1].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[1].rank);
-        return 1;
-    }
-    return 0;
-}
-
-int hasTwoPairs(hand_t * hand){
-    //if 1,2 and 3,4 aabbx
-    //if 1.2 and 4,5 aaxbb
-    //if 2.3 and 4,5 xaabb
-    //with two pairs, the 2nd card will always be a part of one pair 
-    //and 4th card will always be a part of second pair
-    if (hand->cards[0].rank_value == hand->cards[1].rank_value && hand->cards[2].rank_value == hand->cards[3].rank_value)
-    {
-        hand->total_value = (hand->cards[1].rank_value * 2) + (hand->cards[3].rank_value * 2);
-        hand->high_card_value = hand->cards[4].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[4].rank);
-        return 1;
-    }
-    else if (hand->cards[0].rank_value == hand->cards[1].rank_value && hand->cards[3].rank_value == hand->cards[4].rank_value)
-    {
-        hand->total_value = (hand->cards[1].rank_value * 2) + (hand->cards[3].rank_value * 2);
-        hand->high_card_value = hand->cards[2].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[2].rank);
-        return 1;
-    }
-    else if (hand->cards[1].rank_value == hand->cards[2].rank_value && hand->cards[3].rank_value == hand->cards[4].rank_value)
-    {
-        hand->total_value = (hand->cards[1].rank_value * 2) + (hand->cards[3].rank_value * 2);
-        hand->high_card_value = hand->cards[0].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[0].rank);
-        return 1;
-    }
-    return 0;
-}
-
-int hasOnePair(hand_t * hand){
-    //if 1,2 -> 5th card has the highest value
-    //2.3
-    //3,4
-    //4,5 -> card #3 has the highest value
-    if (hand->cards[0].rank_value == hand->cards[1].rank_value)
-    {
-        hand->total_value = hand->cards[0].rank_value * 2;
-        hand->high_card_value = hand->cards[4].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[4].rank);
-        return 1;
-    }
-    else if (hand->cards[1].rank_value == hand->cards[2].rank_value)
-    {
-        hand->total_value = hand->cards[1].rank_value * 2;
-        hand->high_card_value = hand->cards[4].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[4].rank);
-        return 1;
-    }
-    else if (hand->cards[2].rank_value == hand->cards[3].rank_value)
-    {
-        hand->total_value = hand->cards[2].rank_value * 2;
-        hand->high_card_value = hand->cards[4].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[4].rank);
-        return 1;
-    }
-    else if (hand->cards[3].rank_value == hand->cards[4].rank_value)
-    {
-        hand->total_value = hand->cards[3].rank_value * 2;
-        hand->high_card_value = hand->cards[2].rank_value;
-        strcpy(hand->high_card_rank, hand->cards[2].rank);
-        return 1;
-    }else {
-        return 0;
-    }
-}
-
-void addNewPlayer(int playerId, viuda_t * viuda_data) {
-
-    for(int i = 0; i<MAX_PLAYERS; i++){
-        if(viuda_data->players_array[i].id == 0){
-            viuda_data->players_array[i].id = playerId;
-            viuda_data->players_array[i].connected = 1;
-            viuda_data->players_array[i].lost = 0;
-            viuda_data->players_array[i].status = LOBBY;
-            printf("Added player with ID: %d\n", viuda_data->players_array[i].id);
-            break;
-        }
-    }
-
-}
-
-void removePlayer(int playerId, viuda_t * viuda_data) {
-
-    for(int i = 0; i<MAX_PLAYERS; i++){
-        if(viuda_data->players_array[i].id == playerId){
-            viuda_data->players_array[i].id = 0;
-            viuda_data->players_array[i].connected = 0;
-            printf("Removed player with ID: %d\n", viuda_data->players_array[i].id);
-            break;
-        }
-    }
-
-}
 
 int getRandomCard(message_t * message, char pord){ //pord stands for player or dealer
 
@@ -1382,50 +807,7 @@ void calculateResults(message_t * message){
 /*
     Function to initialize all the information necessary
 */
-void initGame(viuda_t * viuda_data) {
 
-    viuda_data->numPlayers = 0;
-    viuda_data->gameBet = 0;
-    viuda_data->prize = 0;
-    viuda_data->winner = 0;
-    viuda_data->playerInTurn = 0;
-    viuda_data->index_playerInTurn = 0;
-    viuda_data->playersReady =  0;
-    viuda_data->lowestAmount =  0;
-    viuda_data->gameStatus = WAIT;
-
-    viuda_data->players_array = malloc(MAX_PLAYERS * sizeof (player_t));
-
-    for(int i = 0; i<MAX_PLAYERS; i++){
-        viuda_data->players_array[i].id = 0;
-        viuda_data->players_array[i].status = WAIT;
-    }
-}
-
-void assignTurns(player_t * players_array, int numPlayers){
-
-    player_t * tempArray;
-    int index = 0;
-
-    tempArray = malloc(numPlayers * sizeof (player_t));
-
-    for(int i = 0; i < MAX_PLAYERS; i++){
-        if(players_array[i].id > 0){
-            tempArray[index] = players_array[i];
-            index++;
-        }
-    }
-
-    for(int i = 0; i < MAX_PLAYERS; i++){
-        if(i<numPlayers){
-            players_array[i] = tempArray[i];
-        } else {
-            players_array[i].id = 0;
-            players_array[i].connected = 0;
-        }
-    }
-
-}
 /*
     Free all the memory used for the bank data
 */

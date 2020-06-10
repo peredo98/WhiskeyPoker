@@ -3,9 +3,9 @@
 ### Variables for this project ###
 # These should be the only ones that need to be modified
 # The files that must be compiled, with a .o extension
-OBJECTS = sockets.o
+OBJECTS = sockets.o hand.o whiskey.o
 # The header files
-DEPENDS = sockets.h codes.h
+DEPENDS = sockets.h codes.h hand.h card.h player.h whiskey.h
 # The executable programs to be created
 CLIENT = client
 #CLIENT = pi_client
