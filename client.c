@@ -210,13 +210,14 @@ void communicationLoop(int connection_fd)
         printf("\n/////ASKING FOR THE BET/////\n");
         while(1){
             send(connection_fd, &message, sizeof message, 0);
-            printf("Entra al while\n");
+            printf("Waiting other players to finish turn\n");
 
             //Check if the player is ready to start the round
             recvData(connection_fd, &message, sizeof message);
 
-            printf("Recibido\n");
+            printf("Finished turn\n");
 
+            /*
             while(start_round){ 
                 printf("Press 3 to start the round\n");
                 fflush( stdout );
@@ -225,7 +226,8 @@ void communicationLoop(int connection_fd)
                     printf("note='%d'\n", start_round);
                     start_round = 0;
                 }
-            }
+            }*/
+            
             //Send ready for round
             send(connection_fd, &message, sizeof message, 0);
 
