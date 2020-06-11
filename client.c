@@ -1,11 +1,10 @@
 /*
-    Client program to access the accounts in the bank
-    This program connects to the server using sockets
-
+    Emiliano Peredo A01422326
     Raziel Nicolás Martínez Castillo A01410695
+    Camila Rovirosa Ochoa A01024192
 
-    File made by professor Gilberto Echeverria
-    
+    Proyect: Whiskey Poker
+
 */
 
 #include <stdio.h>
@@ -90,9 +89,9 @@ void communicationLoop(int connection_fd)
         return;
     }
 
-    // Ask user for his total amount of chips to play
-    printf("Enter the amount of chips that you have to play: ");
-    scanf("%d", &message.playerAmount);
+    // BET AMMOUNT 
+    message.playerAmount = 100;
+
     send(connection_fd, &message, sizeof message, 0);
 
     //Check if the player is ready to start
@@ -124,7 +123,7 @@ void communicationLoop(int connection_fd)
         printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
         printf("\n/////ASKING FOR THE BET/////\n");
-        printf("YOU HAVE %d LIVES", message.playerLives);
+        printf("YOU HAVE %d LIVES\n", message.playerLives);
         while(1){
             send(connection_fd, &message, sizeof message, 0);
             printf("Waiting other players to finish turn\n");
@@ -153,40 +152,41 @@ void communicationLoop(int connection_fd)
             }
             printf("YOUR HAND:\n");
             printHand(message.playerHand);
-
+            
+            //If it is the first turn the Viuda opens and player can only change the full hand or not
             if(message.turn == 1){
                 while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
                     printf("\nChoose one of the options:\n1: Knock\n2: Change all cards\n3: Pass\n");
                     scanf("%d", &playerOption);
                     switch(playerOption){
                         case 1:
-                            message.playerStatus = KNOCK;
+                            message.playerStatus = KNOCK;  //The player has a game and only one more round is left
                             break;
                         case 2:
-                            message.playerStatus = CHANGE_ALL;
+                            message.playerStatus = CHANGE_ALL; //Change the full hand
                             changeAllCards(&message.whiskeyHand, &message.playerHand);
                             break;
                         case 3:
-                            message.playerStatus = PASS;
+                            message.playerStatus = PASS; // The client those nothing
                             break;
                         default:
                             printf("You should press either 1, 2, or 3\n");
                     }
                 }
-            }else{
+            }else{ //The first turn passed
                 while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
                     printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
                     scanf("%d", &playerOption);
                     switch(playerOption){
                         case 1:
-                            message.playerStatus = KNOCK;
+                            message.playerStatus = KNOCK; //The player has a game and only one more round is left
                             break;
                         case 2:
-                            message.playerStatus = CHANGE_ONE;
+                            message.playerStatus = CHANGE_ONE; //Change only one card
                             changeOneCard(&message.whiskeyHand, &message.playerHand);
                             break;
                         case 3:
-                            message.playerStatus = CHANGE_ALL;
+                            message.playerStatus = CHANGE_ALL; //Change the full hand
                             changeAllCards(&message.whiskeyHand, &message.playerHand);
                             break;
                         default:

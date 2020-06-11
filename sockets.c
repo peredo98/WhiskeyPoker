@@ -1,3 +1,13 @@
+
+
+/*
+    Emiliano Peredo A01422326
+    Raziel Nicolás Martínez Castillo A01410695
+    Camila Rovirosa Ochoa A01024192
+
+    Proyect: Whiskey Poker
+
+*/
 /*
     Helper methods to use with sockets
     The basic functions that should be done on any client / server program

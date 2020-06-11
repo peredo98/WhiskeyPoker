@@ -1,3 +1,11 @@
+/*
+    Emiliano Peredo A01422326
+    Raziel Nicolás Martínez Castillo A01410695
+    Camila Rovirosa Ochoa A01024192
+
+    Proyect: Whiskey Poker
+
+*/
 #ifndef PLAYER_H
 #define PLAYER_H
 
@@ -13,10 +21,7 @@ typedef struct player_struct {
     int lives;
     int bet;
     hand_t hand;
-    // card_t cards[5];
-    // int hand_value;
-    // char high_card_rank[3];
-    // int high_card_value;
+
 } player_t;
 
 #endif

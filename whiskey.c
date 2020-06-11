@@ -1,3 +1,11 @@
+/*
+    Emiliano Peredo A01422326
+    Raziel Nicolás Martínez Castillo A01410695
+    Camila Rovirosa Ochoa A01024192
+
+    Proyect: Whiskey Poker
+
+*/
 #include "whiskey.h"
 
 void dealCards(whiskey_t * whiskey_data){

@@ -1,3 +1,11 @@
+/*
+    Emiliano Peredo A01422326
+    Raziel Nicolás Martínez Castillo A01410695
+    Camila Rovirosa Ochoa A01024192
+
+    Proyect: Whiskey Poker
+
+*/
 #include "hand.h"
 
 void evaluateHand(hand_t * hand){
@@ -23,7 +31,6 @@ void evaluateHand(hand_t * hand){
     } else {
         hand->high_card_value = hand->cards[4].rank_value;
         strcpy(hand->high_card_rank, hand->cards[4].rank);
-        printf("SAL\n");
         hand->type = Nothing;
     }
 }

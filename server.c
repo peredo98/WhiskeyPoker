@@ -1,9 +1,11 @@
+ 
 /*
-    Program for a simple bank server
-    It uses sockets and threads
-    The server will process simple transactions on a limited number of accounts
-
+    Emiliano Peredo A01422326
     Raziel Nicolás Martínez Castillo A01410695
+    Camila Rovirosa Ochoa A01024192
+
+    Proyect: Whiskey Poker
+
 */
 
 #include <stdio.h>
