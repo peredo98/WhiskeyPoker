@@ -110,7 +110,6 @@ void completeFirstDeal(message_t * message, int connection_fd);
 */
 void calculateResults(message_t * message);
 void dealerTurn(message_t * message, int connection_fd);
-void playerTurn(message_t * message, int connection_fd);
 int getRandomCard(message_t * message, char pord);
 
 ///// MAIN FUNCTION
@@ -197,37 +196,6 @@ void setupHandlers()
     sigaction(SIGINT, &new_action, NULL);
 
 }
-
-
-
-/*
-    Function to initialize all the information necessary
-    This will allocate memory for the accounts, and for the mutexes
-*/
-// void initBank(bank_t * bank_data, locks_t * data_locks)
-// {
-//     // Set the number of transactions
-//     bank_data->total_transactions = 0;
-
-//     // Allocate the arrays in the structures
-//     bank_data->account_array = malloc(MAX_ACCOUNTS * sizeof (account_t));
-//     // Allocate the arrays for the mutexes
-//     data_locks->account_mutex = malloc(MAX_ACCOUNTS * sizeof (pthread_mutex_t));
-
-//     // Initialize the mutexes, using a different method for dynamically created ones
-//     //data_locks->transactions_mutex = PTHREAD_MUTEX_INITIALIZER;
-//     pthread_mutex_init(&data_locks->transactions_mutex, NULL);
-//     for (int i=0; i<MAX_ACCOUNTS; i++)
-//     {
-//         //data_locks->account_mutex[i] = PTHREAD_MUTEX_INITIALIZER;
-//         pthread_mutex_init(&data_locks->account_mutex[i], NULL);
-//         // Initialize the account balances too
-//         bank_data->account_array[i].balance = 0.0;
-//     }
-
-//     // Read the data from the file
-//     // readBankFile(bank_data);
-// }
 
 /*
     Main loop to wait for incomming connections
@@ -474,7 +442,8 @@ void * attentionThread(void * arg)
         info->message.playerStatus = START;
         info->message.dealerStatus = START;
 
-        // printf("\tRunning thread with connection_fd: %d\n", info->connection_fd);
+        dealCards(info->whiskey_data);
+
 
         // Loop to listen for messages from the client
         while(info->message.playerAmount >= 2){
@@ -483,116 +452,85 @@ void * attentionThread(void * arg)
 
             printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
-            // if(interrupt_exit) {
-            //     printf("Interrupted\n");
-            //     break;
-            // } 
+            //Conditional variable to know the turn of the player to play
+             pthread_mutex_lock(&bets_mutex);
+            while (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id != info->playerId){ 
+                pthread_cond_wait(&getBets_condition, &bets_mutex);
+            }
 
-            // poll_response = poll(test_fds, 1, timeout);
-            // if (poll_response == 0)
-            // {
-            //     printf(". ");
-            //     fflush(stdout);
-            // }
-            // else if (poll_response > 0) //if something was received
-            // {
-
-                pthread_mutex_lock(&bets_mutex);
-                    while (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id != info->playerId){ 
-                            pthread_cond_wait(&getBets_condition, &bets_mutex);
-                    }
-
-                    //Get the bet and player status from the client
-                    printf("\n/////Getting player %d bet/////\n", info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id);
-                    printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
-                    send(info->connection_fd, &info->message, sizeof info->message, 0);
-                    // Receive the request
-                    if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
-                        pthread_exit(NULL);
-                        // return;
-                    }
-                    info->whiskey_data->prize += info->message.playerBet;
-                    printf("The bet of the player is: %d\n", info->message.playerBet);    
-                pthread_mutex_unlock(&bets_mutex);
-
-                //Conditional variable to know the turn of the player to play
+            //Get the bet and player status from the client
+            printf("\n/////Getting player %d bet/////\n", info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id);
+            printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
+            send(info->connection_fd, &info->message, sizeof info->message, 0);
+            // Receive the request
+            if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
+                pthread_exit(NULL);
+                // return;
+            }
+            info->whiskey_data->prize += info->message.playerBet;
+            printf("The bet of the player is: %d\n", info->message.playerBet);    
+            pthread_mutex_unlock(&bets_mutex);
+            
+            while(1){
+        
                 pthread_mutex_lock(&bets_mutex);
                 printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
                     if (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id == info->playerId){
                         printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
                         pthread_mutex_lock(&betsReady_mutex);
                         printf("info->whiskey_data->index_playerInTurn: %d\n", info->whiskey_data->index_playerInTurn);
+                        info->message.whiskeyHand = info->whiskey_data->table_hand;
+                        printf("\n/////SENDING HAND/////%d\n", info->whiskey_data->index_playerInTurn);
+                        printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
+                        info->message.playerHand = info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand;
+
+
+                        printf("\n/////PLAYER %d'S TURN/////\n", info->whiskey_data->index_playerInTurn);
+                        //Update player info based on the options chose
+                        printf("Hand of the player \n");
+                        printHand(info->message.playerHand);
+
+                        //Sends the total hand accumulated by the player
+                        send(info->connection_fd,  &info->message, sizeof info->message, 0);
+                        //Gets the status chosen by the player
+                        recvData(info->connection_fd,  &info->message, sizeof info->message);
+
+                        printf("PLAYER CHOOSED: %d\n", info->message.playerStatus);
+
                         info->whiskey_data->index_playerInTurn++;
                         if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
-                            printf("The prize for the winner is: %d\n", info->whiskey_data->prize);
-                            dealCards(info->whiskey_data);
-                            choosewhiskey(info->whiskey_data);
+                            printf("ROUND FINISHED \n");
                             pthread_cond_broadcast(&betsReady_condition);
+                            info->whiskey_data->index_playerInTurn = 0;
                         } 
                         pthread_mutex_unlock(&betsReady_mutex);
                         printf("UNLOCKED\n");
                         pthread_cond_broadcast(&getBets_condition);
                     } 
-                pthread_mutex_unlock(&bets_mutex);
+                
+                pthread_mutex_unlock(&bets_mutex);  
 
+                /*
                 pthread_mutex_lock(&betsReady_mutex);
-                    while (info->whiskey_data->index_playerInTurn < info->whiskey_data->numPlayers){ //Do nothing (wait for ths to be false)
-                            pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
-                    }
-                pthread_mutex_unlock(&betsReady_mutex);                 
-                
-                
-                completeFirstDeal(&info->message, info->connection_fd); //Generates the first 2 cards of the Player and Dealer
-
-                if((info->message.dealerStatus != NATURAL) && (info->message.playerStatus != NATURAL)){ // if no one got a natural blackjack
-                    printf("\n/////PLAYER'S TURN/////\n");
-                    playerTurn(&info->message, info->connection_fd); //Update player info based on the options chosen by the user
-
-                    //Calculate dealers hands and total accumulated
-                    printf("\n/////DEALER'S TURN/////\n");
-                    dealerTurn(&info->message, info->connection_fd); //Update dealer's info when player's turn is over
+                while (info->whiskey_data->index_playerInTurn < info->whiskey_data->numPlayers){ //Do nothing (wait for ths to be false)
+                    pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
+                    info->whiskey_data->index_playerInTurn = 0;
+                    printf("IS HERE \n");
                 }
+                pthread_mutex_unlock(&betsReady_mutex); 
+                */
 
-                //Take decision based on the status 
-                printf("\n/////TAKING DECISION BASED ON THE STATUS/////\n");
-                calculateResults(&info->message);
+            }
 
-                if(info->message.playerAmount < 2){ //The client disconnects when the player doesn't have enough chips
-                    printf("The player doesn't have enough money to keep playing. The player will exit now.\n");
-                } 
+            //Take decision based on the status 
+            printf("\n/////TAKING DECISION BASED ON THE STATUS/////\n");
+            calculateResults(&info->message);
 
-                send(info->connection_fd, &info->message, sizeof info->message, 0);
+            if(info->message.playerAmount < 2){ //The client disconnects when the player doesn't have enough chips
+                printf("The player doesn't have enough money to keep playing. The player will exit now.\n");
+            } 
 
-
-        //         // Update the number of transactions
-        //         if(response == OK){
-        //             pthread_mutex_lock(&info->data_locks->transactions_mutex);
-        //             info->bank_data->total_transactions++;
-        //             pthread_mutex_unlock(&info->data_locks->transactions_mutex);
-        //         } else if(response == NO_ACCOUNT){
-        //             printf("Invalid acount number received.\n");
-        //         }
-
-        //         // Prepare the message to the client
-        //         sprintf(buffer, "%d %f", response, balance);
-
-        //         // Send a reply
-        //         sendData(info->connection_fd, buffer, strlen(buffer)+1);
-        //     }
-        //     else
-        //     {
-        //         if (errno == EINTR) // if the poll gets interrupted, break while
-        //         {
-        //             printf("Error Interrupt\n");
-        //             break;
-                    
-        //         }
-        //         else
-        //         {
-        //             perror("ERROR: poll");
-        //             exit(EXIT_FAILURE);
-        //         }
-        //     }
+            send(info->connection_fd, &info->message, sizeof info->message, 0);
         }
 
         printf("SALIOO\n");
@@ -688,91 +626,6 @@ void completeFirstDeal(message_t * message, int connection_fd){
         send(connection_fd, message, sizeof (*message), 0);
     }
 
-}
-
-void playerTurn(message_t * message, int connection_fd){
-
-    int newCard = 0;
-
-    //Initial deal
-    printf("Initial hand of the player: [%s] [%s] ", message->playerCards[0], message->playerCards[1]);
-    printf("summing a total of: %d\n", message->totalPlayer);
-
-    //Sends the total hand accumulated by the player
-    send(connection_fd, message, sizeof (*message), 0);
-    //Gets the status chosen by the player
-    recvData(connection_fd, message, sizeof (* message));
-    // Send the corresponding reply
-    while (message->playerStatus == HIT)
-    {
-        printf("The player with a total of %d chose to get a card.\n", message->totalPlayer);
-        newCard = getRandomCard(message, 'p');
-        message->totalPlayer += newCard;
-        printf(" The new total of this player is: %d.\n", message->totalPlayer);
-
-        if (message->totalPlayer == 21) {
-            message->playerStatus = TWENTYONE;
-            printf("The current player got 21!\n");
-            send(connection_fd, message, sizeof (*message), 0);
-            break;
-        } else if (message->totalPlayer > 21) {
-            message->playerStatus = BUST;
-            printf("The current player busted, he is over 21.\n");
-            send(connection_fd, message, sizeof (*message), 0);
-            break;
-        }
-
-        //Sends the status calculated by the server
-        send(connection_fd, message, sizeof (*message), 0);
-
-        //Gets the status chosen by the player
-        recvData(connection_fd, message, sizeof (*message));
-
-        if(message->playerStatus == STAND) {
-            printf("Player chose to stay with %d.\n", message->totalPlayer);
-        }
-    }
-
-    printf("After completing his/her turn the player accumulated the cards:");
-    for(int i = 0; i<message->numPlayerCards; i++){
-        printf(" [%s]", message->playerCards[i]);
-    }
-    printf(" which sum a total of: %d\n", message->totalPlayer);
-}
-
-void dealerTurn(message_t * message, int connection_fd){ //Automatic deicisions based on Blackjack rules
-
-    int newCard = 0;
-
-    //if the player turn is over
-    if((message->playerStatus == STAND) || (message->playerStatus == NATURAL) || (message->playerStatus == TWENTYONE)) {
-
-        printf("Initial dealer's hand: [%s] [%s] making a total of: %d\n", message->dealerCards[0], message->dealerCards[1], message->totalDealer);
-
-        message->dealerStatus = HIT;
-        while((message->dealerStatus != STAND) && (message->dealerStatus != BUST) && (message->dealerStatus != TWENTYONE)){
-            if((message->totalDealer >= 17) && (message->totalDealer < 21)){
-                printf("The dealer stays with a total of: %d\n", message->totalDealer);
-                message->dealerStatus = STAND;
-            } else if (message->totalDealer > 21) {
-                printf("The dealer exceeds 21 with %d and busts.\n", message->totalDealer);
-                message->dealerStatus = BUST;
-            } else if(message->totalDealer == 21) {
-                printf("The dealer got %d!\n", message->totalDealer);
-                message->dealerStatus = TWENTYONE;
-            } else {
-                newCard = getRandomCard(message, 'd'); //If dealer status == HIT
-                message->totalDealer += newCard;
-                printf(" New dealer's total: %d\n", message->totalDealer);
-            }
-        }
-    }
-
-    printf("After completing the turn dealer accumulated the cards:");
-    for(int i = 0; i<message->numDealerCards; i++){
-        printf(" [%s]", message->dealerCards[i]);
-    }
-    printf(" which sum a total of: %d\n", message->totalDealer);
 }
 
 void calculateResults(message_t * message){

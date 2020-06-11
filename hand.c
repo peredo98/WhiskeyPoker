@@ -235,6 +235,14 @@ void sortCardsBySuit(card_t cards[5]){
     }
 }
 
+void printHand(hand_t hand){
+    for(int j = 0; j<5; j++){
+        printf("Card: %s, Suit %s, SuitValue %d,Value %d\n", hand.cards[j].rank, hand.cards[j].suit, hand.cards[j].suit_value, hand.cards[j].rank_value);
+    }
+    evaluateHand(&hand);
+    printf("Type: %d, Untie Value: %d, HighCardRank: %s,  HighCardValue: %d\n", hand.type, hand.total_value, hand.high_card_rank, hand.high_card_value);
+}
+
 hand_t compareHands(hand_t hand, hand_t other_hand){
 
     if(hand.type > other_hand.type){

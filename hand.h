@@ -38,6 +38,7 @@ int hasTwoPairs(hand_t * hand);
 int hasOnePair(hand_t * hand);
 void sortCardsByRank(hand_t * hand);
 void sortCardsBySuit(card_t cards[5]);
+void printHand(hand_t hand);
 hand_t compareHands(hand_t hand, hand_t other_hand);
 
 

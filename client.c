@@ -68,59 +68,41 @@ void usage(char * program)
 
 void playerTurn( message_t * message, int connection_fd) { //Update status of the player to get more cards or stay
 
-    int playerOption;
+    while(1){
+        int playerOption;
 
-    //If the player or dealer got a natural just tell the player with out doing more updates
-    if(message->playerStatus == NATURAL){
-        printf("You got a Natural Blackjack with the cards [%s] and [%s]!\n", message->playerCards[0], message->playerCards[1]);
-    } else { //After Initial deal
-        printf("After the initial deal you have the cards [%s] and [%s], which sum a total of: %d.\n", message->playerCards[0],message->playerCards[1], message->totalPlayer);
-    }
+        //If the player or dealer got a natural just tell the player with out doing more updates
+        printf("TABLE HAND:\n");
+        printHand(message->whiskeyHand);
+        printf("YOUR HAND:\n");
+        printHand(message->playerHand);
 
-    if(message->dealerStatus == NATURAL){
-        printf("The dealer got a Natural Blackjack with the cards [%s] and [%s]!\n", message->dealerCards[0], message->dealerCards[1]);
-    } else { //After Initial deal
-        printf("The dealer has a [%s] and a [faced-down] card.\n", message->dealerCards[0]);
-    }
+        playerOption =  0;
 
-    if((message->playerStatus != NATURAL) && (message->dealerStatus != NATURAL)){
-        while((message->playerStatus != STAND) && (message->playerStatus != BUST) && (message->playerStatus != TWENTYONE)){
-
-            playerOption =  0;
-
-            while((playerOption != 1) && (playerOption != 2)){
-                printf("\nChoose one of the options:\n1: Stay\n2: Get another card\n");
-                scanf("%d", &playerOption);
-                switch(playerOption){
-                    case 1:
-                        message->playerStatus = STAND;
-                        break;
-                    case 2:
-                        message->playerStatus = HIT;
-                        break;
-                    default:
-                        printf("You should press either 1 or 2\n");
-                }
+        while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
+            printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
+            scanf("%d", &playerOption);
+            switch(playerOption){
+                case 1:
+                    message->playerStatus = KNOCK;
+                    break;
+                case 2:
+                    message->playerStatus = CHANGE_ONE;
+                    break;
+                case 3:
+                    message->playerStatus = CHANGE_ALL;
+                    break;
+                default:
+                    printf("You should press either 1, 2, or 3\n");
             }
+        }
 
-            // Send the status chosen by the player
-            send(connection_fd, message, sizeof (*message), 0);
-            
-             if(message->playerStatus == HIT){
-                // Gets the status calculated by the server
-                if (!recvData(connection_fd, message, sizeof (*message)))
-                {
-                    return;
-                }
-                printf("You got the card: [%s]. Your new hand contains the cards:", message->playerCards[(message->numPlayerCards)-1]);
-            } else if (message->playerStatus == STAND){
-                printf("You decided to stay with the cards:");
-            }
-            for(int i = 0; i<message->numPlayerCards; i++){
-                    printf(" [%s]", message->playerCards[i]);
-                }
-                printf(" which sum a total of: %d\n", message->totalPlayer);
-            }
+        printf("Waiting for other players to finish turn\n");
+
+        // Send the status chosen by the player
+        send(connection_fd, message, sizeof (*message), 0);
+
+        recvData(connection_fd, &message, sizeof message);
     }
 }
 
@@ -190,9 +172,12 @@ void communicationLoop(int connection_fd)
         return;
     }
 
+    /*
     // Ask user for his total amount of chips to play
     printf("Enter the amount of chips that you have to play: ");
     scanf("%d", &message.playerAmount);
+    */
+
     send(connection_fd, &message, sizeof message, 0);
 
     recvData(connection_fd, &message, sizeof message);
@@ -223,8 +208,10 @@ void communicationLoop(int connection_fd)
 
         printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
+        /*
         printf("\n/////ASKING FOR THE BET/////\n");
 
+        
         while(askBet){ //Keep asking for a valid bet
             printf("Enter a bet between 2 and 500 chips: ");
             scanf("%d", &message.playerBet);
@@ -239,6 +226,7 @@ void communicationLoop(int connection_fd)
                 askBet = 0;
             }
         }
+        */
         
         message.msg_code = BET; //Send bet amount
         send(connection_fd, &message, sizeof message, 0);
