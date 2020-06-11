@@ -8,7 +8,7 @@
 typedef enum {WAIT, LOBBY, READY} status_t;
 
 // Define constants for the messages in the protocol
-typedef enum {PLAY, START, AMOUNT, BET, BYE, BUST, NATURAL, WAITING, TURN, KNOCK, CHANGE_ONE, CHANGE_ALL, STAND, PASS, TWENTYONE, HI, FULL} code_t;
+typedef enum {PLAY, START, AMOUNT, BET, BYE, WAITING, TURN, KNOCK, CHANGE_ONE, CHANGE_ALL, PASS, FULL} code_t;
 
 // Structure to be sent between client and server
 typedef struct {
@@ -19,11 +19,6 @@ typedef struct {
     int playerAmount;
     int playerBet;
     int numPlayerCards;
-    char playerCards[MAXCARDS][MAXLENGTH];
-    int totalPlayer;
-    int numDealerCards;
-    char dealerCards[MAXCARDS][MAXLENGTH]; 
-    int totalDealer;
     int lowestAmount;
     int turn;
     int playerLives;

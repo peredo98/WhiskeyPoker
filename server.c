@@ -157,33 +157,9 @@ void waitForConnections(int server_fd, whiskey_t * whiskey_data)
     int client_fd;
     int status;
     int idCount = 1; //Variable to assign ids for each player connected
-    //Polls
-    // pthread_t new_tid;
-    // int poll_response;
-	// int timeout = 500;		// Time in milliseconds (0.5 seconds)
-    // int connectionsNum = 0;
-    
-    // Create a structure array to hold the file descriptors to poll
-    // struct pollfd test_fds[1];
-    // // Fill in the structure
-    // test_fds[0].fd = server_fd;
-    // test_fds[0].events = POLLIN;    // Check for incomming data
 
     while (1)
     {
-        // if(interrupt_exit) {
-        //     printf("Interrupted\n");
-        //     break;
-        // } 
-
-        // poll_response = poll(test_fds, 1, timeout);
-        // if (poll_response == 0)
-        // {
-        //     printf(". ");
-        //     fflush(stdout);
-        // }
-        // else if (poll_response > 0) //if something was received
-        // {
             client_address_size = sizeof client_address;
 
             // ACCEPT
@@ -218,24 +194,7 @@ void waitForConnections(int server_fd, whiskey_t * whiskey_data)
             }else {
                 idCount++;
             }
-        // }
-        // else
-        // {
-        //     if (errno == EINTR) // if the poll gets interrupted, break while
-        //     {
-        //         printf("Error Interrupt\n");
-        //         break;
-                
-        //     }
-        //     else
-        //     {
-        //         perror("ERROR: poll");
-        //         exit(EXIT_FAILURE);
-        //     }
-        // }
     }
-    
-    //free(connection_data);
 
 }
 
@@ -248,15 +207,6 @@ void * attentionThread(void * arg)
     thread_data_t * info = arg;
     int round = 0;
     printf("\nSTARTED THREAD WITH CONNECTION: %d\n", info->connection_fd);
-    
-    //Polls
-    // // Create a structure array to hold the file descriptors to poll
-    // struct pollfd test_fds[1];
-    // // Fill in the structure
-    // test_fds[0].fd = info->connection_fd;
-    // test_fds[0].events = POLLIN;    // Check for incomming data
-    // int poll_response;
-    // int timeout = 500;
 
     recvData(info->connection_fd, &info->message, sizeof info->message); //receive PLAY
     // Validate that the client corresponds to this server

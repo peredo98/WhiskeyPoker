@@ -24,7 +24,6 @@
 ///// FUNCTION DECLARATIONS
 void usage(char * program);
 void communicationLoop(int connection_fd);
-void playerTurn( message_t * message, int connection_fd);
 
 ///// MAIN FUNCTION
 int main(int argc, char * argv[])
@@ -64,56 +63,13 @@ void usage(char * program)
     exit(EXIT_FAILURE);
 }
 
-void playerTurn( message_t * message, int connection_fd) { //Update status of the player to get more cards or stay
-
-    while(1){
-        int playerOption;
-
-        //Shows the table hand and the player hand per client
-        printf("TABLE HAND:\n");
-        printHand(message->whiskeyHand);
-        printf("YOUR HAND:\n");
-        printHand(message->playerHand);
-
-        playerOption =  0;
-
-        //Ask 
-        while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
-            printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
-            scanf("%d", &playerOption);
-            switch(playerOption){
-                case 1:
-                    message->playerStatus = KNOCK;
-                    break;
-                case 2:
-                    message->playerStatus = CHANGE_ONE;
-                    break;
-                case 3:
-                    message->playerStatus = CHANGE_ALL;
-                    break;
-                default:
-                    printf("You should press either 1, 2, or 3\n");
-            }
-        }
-
-        printf("Waiting for other players to finish turn\n");
-
-        // Send the status chosen by the player
-        send(connection_fd, message, sizeof (*message), 0);
-
-    }
-}
-
 
 // Do the actual receiving and sending of data
 void communicationLoop(int connection_fd)
 {
     message_t message; //message with the information that will be updated between server and client
     int round = 0;
-    int askBet;
     int start_game = 1;
-    int start_round;
-
     // Handshake
     message.msg_code = PLAY;
     send(connection_fd, &message, sizeof message, 0);
@@ -164,8 +120,6 @@ void communicationLoop(int connection_fd)
     while(message.playerAmount >= 2) //While the player has enough money to bet
     {
         round++;
-        start_round = 1;
-
 
         printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
@@ -241,8 +195,6 @@ void communicationLoop(int connection_fd)
                 }
             }
 
-            askBet = 1;
-            start_round = 1;
             send(connection_fd, &message, sizeof message, 0);
 
         }
@@ -253,17 +205,12 @@ void communicationLoop(int connection_fd)
             return;
         }
 
-        printf("\n/////PLAYER'S TURN/////\n\n");
-        playerTurn(&message, connection_fd); //Here is where the player decides to stay or get more cards
         
         //Receive results made by the dealer
         if (!recvData(connection_fd, &message, sizeof message)) //The final results are received from the server
         {
             return;
         }
-
-        printf("\n/////SHOWING FINAL RESULTS CALCULATED BY THE SERVER/////\n\n");
-        showResults(&message); //Show a message depending on the calculations of the server
 
         if(message.playerAmount < 2) { //Check if the player can keep playing, if cannot, disconnect.
             printf("You don't have enough money to keep playing, goodbye!\n");
