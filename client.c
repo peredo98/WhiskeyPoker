@@ -69,7 +69,7 @@ void playerTurn( message_t * message, int connection_fd) { //Update status of th
     while(1){
         int playerOption;
 
-        //If the player or dealer got a natural just tell the player with out doing more updates
+        //Shows the table hand and the player hand per client
         printf("TABLE HAND:\n");
         printHand(message->whiskeyHand);
         printf("YOUR HAND:\n");
@@ -77,6 +77,7 @@ void playerTurn( message_t * message, int connection_fd) { //Update status of th
 
         playerOption =  0;
 
+        //Ask 
         while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
             printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
             scanf("%d", &playerOption);
@@ -179,16 +180,7 @@ void communicationLoop(int connection_fd)
 
             printf("Finished turn\n");
 
-            /*
-            while(start_round){ 
-                printf("Press 3 to start the round\n");
-                fflush( stdout );
-                scanf("%d", &start_round);
-                if(start_round == 3){
-                    printf("note='%d'\n", start_round);
-                    start_round = 0;
-                }
-            }*/
+            
             
             //Send ready for round
             send(connection_fd, &message, sizeof message, 0);
@@ -209,22 +201,18 @@ void communicationLoop(int connection_fd)
             printHand(message.playerHand);
 
             if(message.turn == 1){
-                while((playerOption != 1) && (playerOption != 2) && (playerOption != 3) && (playerOption != 4)){
-                    printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n4: Pass\n");
+                while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
+                    printf("\nChoose one of the options:\n1: Knock\n2: Change all cards\n3: Pass\n");
                     scanf("%d", &playerOption);
                     switch(playerOption){
                         case 1:
                             message.playerStatus = KNOCK;
                             break;
                         case 2:
-                            message.playerStatus = CHANGE_ONE;
-                            changeOneCard(&message.whiskeyHand, &message.playerHand);
-                            break;
-                        case 3:
                             message.playerStatus = CHANGE_ALL;
                             changeAllCards(&message.whiskeyHand, &message.playerHand);
                             break;
-                        case 4:
+                        case 3:
                             message.playerStatus = PASS;
                             break;
                         default:
@@ -283,7 +271,7 @@ void communicationLoop(int connection_fd)
         } else {
             //Reset status of dealer and player for next round
             message.playerStatus = START;
-            message.dealerStatus = START;
+            
         }
     }
 
