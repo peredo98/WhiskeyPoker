@@ -68,42 +68,38 @@ void usage(char * program)
 
 void playerTurn( message_t * message, int connection_fd) { //Update status of the player to get more cards or stay
 
-    while(1){
-        int playerOption;
+    int playerOption;
 
-        //If the player or dealer got a natural just tell the player with out doing more updates
-        printf("TABLE HAND:\n");
-        printHand(message->whiskeyHand);
-        printf("YOUR HAND:\n");
-        printHand(message->playerHand);
+    //If the player or dealer got a natural just tell the player with out doing more updates
+    printf("TABLE HAND:\n");
+    printHand(message->whiskeyHand);
+    printf("YOUR HAND:\n");
+    printHand(message->playerHand);
 
-        playerOption =  0;
+    playerOption =  0;
 
-        while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
-            printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
-            scanf("%d", &playerOption);
-            switch(playerOption){
-                case 1:
-                    message->playerStatus = KNOCK;
-                    break;
-                case 2:
-                    message->playerStatus = CHANGE_ONE;
-                    break;
-                case 3:
-                    message->playerStatus = CHANGE_ALL;
-                    break;
-                default:
-                    printf("You should press either 1, 2, or 3\n");
-            }
+    while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
+        printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
+        scanf("%d", &playerOption);
+        switch(playerOption){
+            case 1:
+                message->playerStatus = KNOCK;
+                break;
+            case 2:
+                message->playerStatus = CHANGE_ONE;
+                break;
+            case 3:
+                message->playerStatus = CHANGE_ALL;
+                break;
+            default:
+                printf("You should press either 1, 2, or 3\n");
         }
-
-        printf("Waiting for other players to finish turn\n");
-
-        // Send the status chosen by the player
-        send(connection_fd, message, sizeof (*message), 0);
-
-        recvData(connection_fd, &message, sizeof message);
     }
+
+    printf("Waiting for other players to finish turn\n");
+
+    // Send the status chosen by the player
+    send(connection_fd, message, sizeof (*message), 0);
 }
 
 void showResults( message_t * message) { //Show the results and messages depending on the calculations of the server
