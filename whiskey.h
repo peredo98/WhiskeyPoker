@@ -13,7 +13,7 @@
 #include <time.h>
 
 #define MAX_PLAYERS 8
-#define LIVES 2
+#define LIVES 3
 
 typedef struct whiskey_struct { //Main structure for status of the game
 

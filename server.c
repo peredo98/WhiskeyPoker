@@ -691,7 +691,7 @@ void * attentionThread(void * arg)
             //END FINAL ROUND
             //////////////////////////////////          
             
-            
+            /*
             completeFirstDeal(&info->message, info->connection_fd); //Generates the first 2 cards of the Player and Dealer
 
             //Take decision based on the status 
@@ -703,7 +703,7 @@ void * attentionThread(void * arg)
             } 
 
             send(info->connection_fd, &info->message, sizeof info->message, 0);
-
+            */
 
     //         // Update the number of transactions
     //         if(response == OK){
