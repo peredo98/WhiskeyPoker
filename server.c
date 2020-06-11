@@ -446,7 +446,7 @@ void * attentionThread(void * arg)
 
 
         // Loop to listen for messages from the client
-        while(info->message.playerAmount >= 2){
+        while(1){
 
             round++;
 
@@ -501,7 +501,6 @@ void * attentionThread(void * arg)
                         if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
                             printf("ROUND FINISHED \n");
                             pthread_cond_broadcast(&betsReady_condition);
-                            info->whiskey_data->index_playerInTurn = 0;
                         } 
                         pthread_mutex_unlock(&betsReady_mutex);
                         printf("UNLOCKED\n");
@@ -510,15 +509,15 @@ void * attentionThread(void * arg)
                 
                 pthread_mutex_unlock(&bets_mutex);  
 
-                /*
+            
                 pthread_mutex_lock(&betsReady_mutex);
                 while (info->whiskey_data->index_playerInTurn < info->whiskey_data->numPlayers){ //Do nothing (wait for ths to be false)
                     pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
                     info->whiskey_data->index_playerInTurn = 0;
                     printf("IS HERE \n");
+                    break;
                 }
                 pthread_mutex_unlock(&betsReady_mutex); 
-                */
 
             }
 
