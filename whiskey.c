@@ -25,9 +25,9 @@ void dealCards(whiskey_t * whiskey_data){
     }
 
     //Print cards
-    for(int i = 0; i < 52; i++) {
-        printf("#%d, Card %s, Value %d, Suit %s, SuitValue %d Used? %d\n", i+1, cards[i].rank, cards[i].rank_value, cards[i].suit, cards[i].suit_value, cards[i].used);
-    }
+    // for(int i = 0; i < 52; i++) {
+    //     printf("#%d, Card %s, Value %d, Suit %s, SuitValue %d Used? %d\n", i+1, cards[i].rank, cards[i].rank_value, cards[i].suit, cards[i].suit_value, cards[i].used);
+    // }
 
     //generate players cards
     for(int i = 0; i<whiskey_data->numPlayers; i++){
@@ -67,28 +67,28 @@ void dealCards(whiskey_t * whiskey_data){
     }
 
     //print player cards
-    for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
-        if(i == whiskey_data->numPlayers){
-            printf("Table cards:\n");
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue: %d, Value %d\n", whiskey_data->table_hand.cards[j].rank, whiskey_data->table_hand.cards[j].suit, whiskey_data->table_hand.cards[j].suit_value, whiskey_data->table_hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }else {
-            printf("Player: %d\n", whiskey_data->players_array[i].id);
-            for(int j = 0; j<5; j++){
-                printf("Cart: %s, Suit %s, SuitValue: %d, Value %d\n", whiskey_data->players_array[i].hand.cards[j].rank, whiskey_data->players_array[i].hand.cards[j].suit, whiskey_data->players_array[i].hand.cards[j].suit_value, whiskey_data->players_array[i].hand.cards[j].rank_value);
-            }
-            printf("\n");
-        }
-    }
+    // for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
+    //     if(i == whiskey_data->numPlayers){
+    //         printf("Table cards:\n");
+    //         for(int j = 0; j<5; j++){
+    //             printf("Cart: %s, Suit %s, SuitValue: %d, Value %d\n", whiskey_data->table_hand.cards[j].rank, whiskey_data->table_hand.cards[j].suit, whiskey_data->table_hand.cards[j].suit_value, whiskey_data->table_hand.cards[j].rank_value);
+    //         }
+    //         printf("\n");
+    //     }else {
+    //         printf("Player: %d\n", whiskey_data->players_array[i].id);
+    //         for(int j = 0; j<5; j++){
+    //             printf("Cart: %s, Suit %s, SuitValue: %d, Value %d\n", whiskey_data->players_array[i].hand.cards[j].rank, whiskey_data->players_array[i].hand.cards[j].suit, whiskey_data->players_array[i].hand.cards[j].suit_value, whiskey_data->players_array[i].hand.cards[j].rank_value);
+    //         }
+    //         printf("\n");
+    //     }
+    // }
 
     //Print cards
-    for(int i = 0; i < 52; i++) {
-        printf("#%d, Card %s, Suit %s, SuitValue: %d, Used? %d, Value %d\n", i+1, cards[i].rank, cards[i].suit, cards[i].suit_value, cards[i].used, cards[i].rank_value);
-    }
+    // for(int i = 0; i < 52; i++) {
+    //     printf("#%d, Card %s, Suit %s, SuitValue: %d, Used? %d, Value %d\n", i+1, cards[i].rank, cards[i].suit, cards[i].suit_value, cards[i].used, cards[i].rank_value);
+    // }
 
-    //print player cards
+    //sort player cards
     for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
         if(i == whiskey_data->numPlayers){
             sortCardsByRank(&whiskey_data->table_hand);
@@ -135,8 +135,6 @@ void dealCards(whiskey_t * whiskey_data){
             printf("Type: %d, Untie Value: %d, HighCardRank: %s,  HighCardValue: %d\n", whiskey_data->players_array[i].hand.type, whiskey_data->players_array[i].hand.total_value, whiskey_data->players_array[i].hand.high_card_rank,whiskey_data->players_array[i].hand.high_card_value);
         }
     }
-
-    compareHands(whiskey_data->table_hand, whiskey_data->players_array[0].hand);
 }
 
 
