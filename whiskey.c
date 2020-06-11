@@ -187,7 +187,7 @@ void initGame(whiskey_t * whiskey_data) {
     }
 }
 
-void choosewhiskey (whiskey_t *whiskey_data){
+void choosewhiskey(whiskey_t *whiskey_data, code_t playerStatus){
     
     int option;
     int chooseCard;
@@ -201,9 +201,9 @@ void choosewhiskey (whiskey_t *whiskey_data){
     card_t tempCard;
 
     while(1){ //Keep asking for a valid bet
-            printf("Si quieres la viuda entera presiona 1, si quieres solo una carta presiona 2\n");
-            scanf("%d", &option);
-            if(option == 1){
+            // printf("Si quieres la viuda entera presiona 1, si quieres solo una carta presiona 2\n");
+            // scanf("%d", &option);
+            if(playerStatus == CHANGE_ALL){
                 printf("Toma la viuda entera");
                 temp = playerHand;
                 playerHand = tableHand;
@@ -212,7 +212,7 @@ void choosewhiskey (whiskey_t *whiskey_data){
                 whiskey_data->players_array[0].hand=playerHand;
                 break;
             } 
-            else if(option == 2) {
+            else if(playerStatus == CHANGE_ONE) {
                 while(1){
                     printf("Escoge la carta que vas a cambiar: ");
                     printf("Card 1 = %s %s\n",playerHand.cards[0].rank, playerHand.cards[0].suit);

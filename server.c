@@ -89,6 +89,9 @@ pthread_mutex_t bets_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t betsReady_condition = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t betsReady_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_cond_t roundReady_condition = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t roundReady_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 ///// FUNCTION DECLARATIONS
 void usage(char * program);
 void setupHandlers();
@@ -111,6 +114,8 @@ void completeFirstDeal(message_t * message, int connection_fd);
 void calculateResults(message_t * message);
 void dealerTurn(message_t * message, int connection_fd);
 int getRandomCard(message_t * message, char pord);
+
+
 
 ///// MAIN FUNCTION
 int main(int argc, char * argv[])
@@ -207,91 +212,91 @@ void waitForConnections(int server_fd, whiskey_t * whiskey_data)
     socklen_t client_address_size;
     char client_presentation[INET_ADDRSTRLEN];
     int client_fd;
-    pthread_t new_tid;
-    thread_data_t * connection_data = NULL;
-    int poll_response;
-	int timeout = 500;		// Time in milliseconds (0.5 seconds)
+    // pthread_t new_tid;
+    // int poll_response;
+	// int timeout = 500;		// Time in milliseconds (0.5 seconds)
+    // int connectionsNum = 0;
+    int status;
+    int idCount = 1; //Variable to assign ids for each player connected
 
     // Create a structure array to hold the file descriptors to poll
-    struct pollfd test_fds[1];
-    // Fill in the structure
-    test_fds[0].fd = server_fd;
-    test_fds[0].events = POLLIN;    // Check for incomming data
-
-    // Get the size of the structure to store client information
-    client_address_size = sizeof client_address;
-
-    //Variable to assign ids for each player connected
-    int idCount = 1; 
+    // struct pollfd test_fds[1];
+    // // Fill in the structure
+    // test_fds[0].fd = server_fd;
+    // test_fds[0].events = POLLIN;    // Check for incomming data
 
     while (1)
     {
+        // if(interrupt_exit) {
+        //     printf("Interrupted\n");
+        //     break;
+        // } 
 
-        while (!interrupt_exit)
-        {
-            poll_response = poll(test_fds, 1, timeout);
-            if (poll_response == 0)
+        // poll_response = poll(test_fds, 1, timeout);
+        // if (poll_response == 0)
+        // {
+        //     printf(". ");
+        //     fflush(stdout);
+        // }
+        // else if (poll_response > 0) //if something was received
+        // {
+            client_address_size = sizeof client_address;
+
+            // ACCEPT
+            // Wait for a client connection
+            client_fd = accept(server_fd, (struct sockaddr *)&client_address, &client_address_size);
+            if (client_fd == -1)
             {
-                fflush(stdout);
+                perror("ERROR: accept");
+                close(client_fd);
             }
-            else if (poll_response > 0)
-            {
-                // Receive the request
-                if(test_fds[0].revents & POLLIN){
-                    // ACCEPT
-                    // Wait for a client connection
-                    client_fd = accept(server_fd, (struct sockaddr *)&client_address, &client_address_size);
-                    break;
-                }
-            }
-            else
-            {
-                if (errno == EINTR)
-                {
-                    break;
-                }
-                else
-                {
-                    perror("ERROR: poll");
-                    exit(EXIT_FAILURE);
-                }
-            }
-        }
             
-        // Get the data from the client
-        inet_ntop(client_address.sin_family, &client_address.sin_addr, client_presentation, sizeof client_presentation);
-        printf("Received incomming connection from %s on port %d\n", client_presentation, client_address.sin_port);
+            // Get the data from the client
+            inet_ntop(client_address.sin_family, &client_address.sin_addr, client_presentation, sizeof client_presentation);
+            printf("Received incomming connection from %s on port %d\n", client_presentation, client_address.sin_port);
 
-        printf("CLIENT_FD: %d\n", client_fd);
-        pthread_t tid;
-        thread_data_t * connection_data = NULL;
-        connection_data = malloc (sizeof (thread_data_t));
-        // Prepare the structure to send to the thread
-        connection_data->connection_fd = client_fd;
-        connection_data->whiskey_data = whiskey_data;
-        connection_data->playerId = idCount;
-        
-        // CREATE A THREAD
-        int created_thread = pthread_create(&tid, NULL, attentionThread, connection_data);
+            printf("CLIENT_FD: %d\n", client_fd);
+            pthread_t tid;
+            thread_data_t * connection_data = NULL;
+            connection_data = malloc (sizeof (thread_data_t));
+            // Prepare the structure to send to the thread
+            connection_data->connection_fd = client_fd;
+            connection_data->whiskey_data = whiskey_data;
+            connection_data->playerId = idCount;
+            
+            // CREATE A THREAD
+            status = pthread_create(&tid, NULL, attentionThread, connection_data);
 
-        if (created_thread != 0)
-        {
-            perror("ERROR: pthread_create");
-        }else {
-            idCount++;
-        }
-
-
+            if (status == -1)
+            {
+                perror("ERROR: pthread_create");
+                close(client_fd);
+            }else {
+                idCount++;
+            }
+        // }
+        // else
+        // {
+        //     if (errno == EINTR) // if the poll gets interrupted, break while
+        //     {
+        //         printf("Error Interrupt\n");
+        //         break;
+                
+        //     }
+        //     else
+        //     {
+        //         perror("ERROR: poll");
+        //         exit(EXIT_FAILURE);
+        //     }
+        // }
     }
+    // Show the number of total transactions
+    // printf("Transactions made: %d\n", bank_data->total_transactions);
 
-    //close descriptors
-    close(client_fd);
-    close(connection_data->connection_fd);
+    // free(connection_data);
 
-    //join threads
-    pthread_join(new_tid, NULL);
-
-    free(connection_data);
+    // Store any changes in the file
+    // storeChanges(bank_data);
 }
 
 /*
@@ -300,226 +305,229 @@ void waitForConnections(int server_fd, whiskey_t * whiskey_data)
 void * attentionThread(void * arg)
 {  
     // Receive the data for the bank, mutexes and socket file descriptor
-    thread_data_t * info = (thread_data_t *)arg;
+    thread_data_t * info = arg;
     int round = 0;
-    int connection;
     printf("\nSTARTED THREAD WITH CONNECTION: %d\n", info->connection_fd);
-    //response_t response;
-    // Create a structure array to hold the file descriptors to poll
-    struct pollfd poll_test[1];
-    // Fill in the structure
-    poll_test[0].fd = info->connection_fd;      // File descriptor for client
-    poll_test[0].events = POLLIN;
-    int timeout = 0;        // Time in milliseconds
-    int poll_result;
-    
+    // response_t response;
+    // // Create a structure array to hold the file descriptors to poll
+    // struct pollfd test_fds[1];
+    // // Fill in the structure
+    // test_fds[0].fd = info->connection_fd;
+    // test_fds[0].events = POLLIN;    // Check for incomming data
+    // int poll_response;
+    // int timeout = 500;
+
+    recvData(info->connection_fd, &info->message, sizeof info->message); //receive PLAY
+    // Validate that the client corresponds to this server
+    if (info->message.msg_code != PLAY)
+    {
+        printf("Error: unrecognized client\n");
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+        pthread_exit(NULL);
+    } else {
+        info->whiskey_data->numPlayers++;
+    }
+
+    if(info->whiskey_data->gameStatus == START){ //Game already started
+        printf("Rejected client, the game has already started.\n");
+        info->message.msg_code = FULL;
+        info->whiskey_data->numPlayers--;
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+        close(info->connection_fd);
+        pthread_exit(NULL);
+    }
+
+    if(info->whiskey_data->numPlayers>MAX_PLAYERS){  //Check if the maximum players (8) has been reached
+        printf("Rejected client, there are already 8 players.\n");
+        info->message.msg_code = FULL;
+        info->whiskey_data->numPlayers--;
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+        close(info->connection_fd);
+        pthread_exit(NULL);
+    }
+
+    // Prepare a reply
+    info->message.msg_code = AMOUNT;
+    send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+    // Get the reply and validate again, receives AMOUNT
+    recvData(info->connection_fd, &info->message, sizeof info->message);
+    if (info->message.msg_code != AMOUNT)
+    {
+        printf("Error: unrecognized client\n");
+        close(info->connection_fd);
+        pthread_exit(NULL);
+    }
+
+    printf("The starting amount of the player is: %d\n", info->message.playerAmount);
+
+    if((info->whiskey_data->lowestAmount > info->message.playerAmount) || (info->whiskey_data->lowestAmount == 0)) {
+        info->whiskey_data->lowestAmount = info->message.playerAmount;
+    }
+
+    printf("The players can bet at most %d.\n", info->whiskey_data->lowestAmount);
+
+    //add player to players array
+    addNewPlayer(info->playerId, info->whiskey_data);
+
+    printf("Checking if the player is ready to start.\n");
+
+    send(info->connection_fd, &info->message, sizeof info->message, 0);
+    //RECEIVES START
+    recvData(info->connection_fd, &info->message, sizeof info->message);
+
+    //Conditional variable to know if all the players are ready to play
+    if(info->message.theStatus == LOBBY) {
+        pthread_mutex_lock(&ready_mutex);
+          info->whiskey_data->playersReady++;
+          if (info->whiskey_data->playersReady == info->whiskey_data->numPlayers){
+              info->whiskey_data->gameStatus = START;
+              assignTurns(info->whiskey_data->players_array, info->whiskey_data->numPlayers); //Put all the players at the beginning of the array so it is filled without empty spaces
+              for(int i =0 ; i<info->whiskey_data->numPlayers; i++){
+                printf("PLAYER INFO: %d, Connected: %d, %d\n", info->whiskey_data->players_array[i].id, info->whiskey_data->players_array[i].connected, i);
+              }
+              printf("TESTING\n");
+              pthread_cond_broadcast(&start_condition);
+          } 
+        pthread_mutex_unlock(&ready_mutex);
+    }
+
+    pthread_mutex_lock(&ready_mutex);
+          while (info->whiskey_data->playersReady < info->whiskey_data->numPlayers) { //Do nothing (wait for this to be false)
+                pthread_cond_wait(&start_condition, &ready_mutex);
+          }
+          info->message.lowestAmount = info->whiskey_data->lowestAmount;
+          printf("ESTABLISH LOWEST AMOUNT %d FOR THREAD WITH CONNECTION: %d", info->message.lowestAmount, info->connection_fd);
+          
+    pthread_mutex_unlock(&ready_mutex);
+
+    // Prepare a reply
+    info->message.playerStatus = START;
+    info->message.dealerStatus = START;
+
+    dealCards(info->whiskey_data);
+    //Send OK
+    send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+    // printf("\tRunning thread with connection_fd: %d\n", info->connection_fd);
 
     // Loop to listen for messages from the client
-    while(1)
-    {
-        //poll for recieving data
-        while (!interrupt_exit)
-        {
-            poll_result = poll(poll_test, 1, timeout);
-            if (poll_result == 0)
-            {
-                fflush(stdout);
-            }
-            else if (poll_result > 0)
-            {
-                // Receive the request
-                if(poll_test[0].revents & POLLIN){
-                    connection = recvData(info->connection_fd, &info->message, sizeof info->message); //receive PLAY
-                    break;
-                }
-            }
-            else
-            {
-                if (errno == EINTR)
-                {
-                    break;
-                }
-                else
-                {
-                    perror("ERROR: poll");
-                    exit(EXIT_FAILURE);
-                }
-            }
-        }
+    while(info->message.playerAmount >= 2){
 
-        if(interrupt_exit == 1){
-            break;
-        }
+        round++;
 
-        if(connection == 0){
-            break;
-        }
-    
-        // Validate that the client corresponds to this server
-        if (info->message.msg_code != PLAY)
-        {
-            printf("Error: unrecognized client\n");
-            send(info->connection_fd, &info->message, sizeof info->message, 0);
-            pthread_exit(NULL);
-        } else {
-            info->whiskey_data->numPlayers++;
-        }
+        printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
-        if(info->whiskey_data->gameStatus == START){ //Game already started
-            printf("Rejected client, the game has already started.\n");
-            info->message.msg_code = FULL;
-            info->whiskey_data->numPlayers--;
-            send(info->connection_fd, &info->message, sizeof info->message, 0);
-            close(info->connection_fd);
-            pthread_exit(NULL);
-        }
+        // if(interrupt_exit) {
+        //     printf("Interrupted\n");
+        //     break;
+        // } 
 
-        if(info->whiskey_data->numPlayers>MAX_PLAYERS){  //Check if the maximum players (8) has been reached
-            printf("Rejected client, there are already 8 players.\n");
-            info->message.msg_code = FULL;
-            info->whiskey_data->numPlayers--;
-            send(info->connection_fd, &info->message, sizeof info->message, 0);
-            close(info->connection_fd);
-            pthread_exit(NULL);
-        }
+        // poll_response = poll(test_fds, 1, timeout);
+        // if (poll_response == 0)
+        // {
+        //     printf(". ");
+        //     fflush(stdout);
+        // }
+        // else if (poll_response > 0) //if something was received
+        // {
 
-        // Prepare a reply
-        info->message.msg_code = AMOUNT;
-        send(info->connection_fd, &info->message, sizeof info->message, 0);
-
-        // Get the reply and validate again, receives AMOUNT
-        recvData(info->connection_fd, &info->message, sizeof info->message);
-        if (info->message.msg_code != AMOUNT)
-        {
-            printf("Error: unrecognized client\n");
-            close(info->connection_fd);
-            pthread_exit(NULL);
-        }
-
-        printf("The starting amount of the player is: %d\n", info->message.playerAmount);
-
-        if((info->whiskey_data->lowestAmount > info->message.playerAmount) || (info->whiskey_data->lowestAmount == 0)) {
-            info->whiskey_data->lowestAmount = info->message.playerAmount;
-        }
-
-        printf("The players can bet at most %d.\n", info->whiskey_data->lowestAmount);
-
-        //add player to players array
-        addNewPlayer(info->playerId, info->whiskey_data);
-
-        printf("Checking if the player is ready to start.\n");
-
-        send(info->connection_fd, &info->message, sizeof info->message, 0);
-
-        recvData(info->connection_fd, &info->message, sizeof info->message);
-
-        //Conditional variable to know if all the players are ready to play
-        if(info->message.theStatus == LOBBY) {
-            pthread_mutex_lock(&ready_mutex);
-            info->whiskey_data->playersReady++;
-            if (info->whiskey_data->playersReady == info->whiskey_data->numPlayers){
-                info->whiskey_data->gameStatus = START;
-                assignTurns(info->whiskey_data->players_array, info->whiskey_data->numPlayers); //Put all the players at the beginning of the array so it is filled without empty spaces
-                for(int i =0 ; i<info->whiskey_data->numPlayers; i++){
-                    printf("PLAYER INFO: %d, Connected: %d, %d\n", info->whiskey_data->players_array[i].id, info->whiskey_data->players_array[i].connected, i);
-                }
-                printf("TESTING\n");
-                pthread_cond_broadcast(&start_condition);
-            } 
-            pthread_mutex_unlock(&ready_mutex);
-        }
-
-        pthread_mutex_lock(&ready_mutex);
-            while (info->whiskey_data->playersReady < info->whiskey_data->numPlayers) { //Do nothing (wait for this to be false)
-                    pthread_cond_wait(&start_condition, &ready_mutex);
-            }
-            info->message.lowestAmount = info->whiskey_data->lowestAmount;
-            printf("ESTABLISH LOWEST AMOUNT %d FOR THREAD WITH CONNECTION: %d", info->message.lowestAmount, info->connection_fd);
-            
-        pthread_mutex_unlock(&ready_mutex);
-
-        // Prepare a reply
-        info->message.playerStatus = START;
-        info->message.dealerStatus = START;
-
-        dealCards(info->whiskey_data);
-
-
-        // Loop to listen for messages from the client
         while(1){
 
-            round++;
+            printf("NUEVA RONDA\n");
 
-            printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
+            printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
+
+            printf("Sin recibir 1\n");
+
+            recvData(info->connection_fd, &info->message, sizeof info->message);
+            
+            printf("Recibido 1\n");
+
+            send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+            printf("ENVIADO ESTE ID: %d\n", info->playerId);
+
+            recvData(info->connection_fd, &info->message, sizeof info->message);
+
+            printf("3 RECIBIDO \n");
+
+            pthread_mutex_lock(&roundReady_mutex);
+            info->whiskey_data->index_startRoundIndex++;
+            printf("ROUND INDEX %d\n", info->whiskey_data->index_startRoundIndex);
+            if (info->whiskey_data->index_startRoundIndex == info->whiskey_data->numPlayers){
+                info->whiskey_data->index_playerInTurn = 0;
+                printf("ROUND_PLAYER INFO: %d\n", info->playerId);
+                printf("TESTING\n");
+                pthread_cond_broadcast(&roundReady_condition);
+            } 
+            pthread_mutex_unlock(&roundReady_mutex);
+
+
+            pthread_mutex_lock(&roundReady_mutex);
+                while (info->whiskey_data->index_startRoundIndex < info->whiskey_data->numPlayers) { //Do nothing (wait for this to be false)
+                        pthread_cond_wait(&roundReady_condition, &roundReady_mutex);
+                }
+            pthread_mutex_unlock(&roundReady_mutex);
+
+            pthread_mutex_lock(&bets_mutex);
+                while (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id != info->playerId){ 
+                        pthread_cond_wait(&getBets_condition, &bets_mutex);
+                }
+
+                //Get the bet and player status from the client
+                printf("\n/////Getting player %d bet/////\n", info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id);
+                printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
+
+                info->message.whiskeyHand = info->whiskey_data->table_hand;
+                printf("\n/////SENDING HAND/////%d\n", info->whiskey_data->index_playerInTurn);
+                printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
+                info->message.playerHand = info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand;
+
+                send(info->connection_fd, &info->message, sizeof info->message, 0);
+                // Receive the request
+                if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
+                    pthread_exit(NULL);
+                    // return;
+                }
+                info->whiskey_data->prize += info->message.playerBet;
+                printf("The bet of the player is: %d\n", info->message.playerBet);    
+            pthread_mutex_unlock(&bets_mutex);
 
             //Conditional variable to know the turn of the player to play
-             pthread_mutex_lock(&bets_mutex);
-            while (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id != info->playerId){ 
-                pthread_cond_wait(&getBets_condition, &bets_mutex);
-            }
-
-            //Get the bet and player status from the client
-            printf("\n/////Getting player %d bet/////\n", info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id);
-            printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
-            send(info->connection_fd, &info->message, sizeof info->message, 0);
-            // Receive the request
-            if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
-                pthread_exit(NULL);
-                // return;
-            }
-            info->whiskey_data->prize += info->message.playerBet;
-            printf("The bet of the player is: %d\n", info->message.playerBet);    
-            pthread_mutex_unlock(&bets_mutex);
-            
-            while(1){
-        
-                pthread_mutex_lock(&bets_mutex);
-                printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
-                    if (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id == info->playerId){
-                        printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
-                        pthread_mutex_lock(&betsReady_mutex);
-                        printf("info->whiskey_data->index_playerInTurn: %d\n", info->whiskey_data->index_playerInTurn);
-                        info->message.whiskeyHand = info->whiskey_data->table_hand;
-                        printf("\n/////SENDING HAND/////%d\n", info->whiskey_data->index_playerInTurn);
-                        printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
-                        info->message.playerHand = info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand;
-
-
-                        printf("\n/////PLAYER %d'S TURN/////\n", info->whiskey_data->index_playerInTurn);
-                        //Update player info based on the options chose
-                        printf("Hand of the player \n");
-                        printHand(info->message.playerHand);
-
-                        //Sends the total hand accumulated by the player
-                        send(info->connection_fd,  &info->message, sizeof info->message, 0);
-                        //Gets the status chosen by the player
-                        recvData(info->connection_fd,  &info->message, sizeof info->message);
-
-                        printf("PLAYER CHOOSED: %d\n", info->message.playerStatus);
-
-                        info->whiskey_data->index_playerInTurn++;
-                        if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
-                            printf("ROUND FINISHED \n");
-                            pthread_cond_broadcast(&betsReady_condition);
-                        } 
-                        pthread_mutex_unlock(&betsReady_mutex);
-                        printf("UNLOCKED\n");
-                        pthread_cond_broadcast(&getBets_condition);
+            pthread_mutex_lock(&bets_mutex);
+            printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
+                if (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id == info->playerId){
+                    printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
+                    pthread_mutex_lock(&betsReady_mutex);
+                    printf("info->whiskey_data->index_playerInTurn: %d\n", info->whiskey_data->index_playerInTurn);
+                    info->whiskey_data->index_playerInTurn++;
+                    if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
+                        printf("The prize for the winner is: %d\n", info->whiskey_data->prize);
+                        info->whiskey_data->index_startRoundIndex = 0;
+                        printf("Going to next round\n");
+                        // dealCards(info->whiskey_data);
+                        // chooseViuda(info->whiskey_data);
+                        pthread_cond_broadcast(&betsReady_condition);
                     } 
-                
-                pthread_mutex_unlock(&bets_mutex);  
+                    pthread_mutex_unlock(&betsReady_mutex);
+                    printf("UNLOCKED\n");
+                    pthread_cond_broadcast(&getBets_condition);
+                } 
+            pthread_mutex_unlock(&bets_mutex);
 
-            
-                pthread_mutex_lock(&betsReady_mutex);
+            pthread_mutex_lock(&betsReady_mutex);
                 while (info->whiskey_data->index_playerInTurn < info->whiskey_data->numPlayers){ //Do nothing (wait for ths to be false)
                     pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
-                    info->whiskey_data->index_playerInTurn = 0;
-                    printf("IS HERE \n");
-                    break;
                 }
-                pthread_mutex_unlock(&betsReady_mutex); 
+            pthread_mutex_unlock(&betsReady_mutex);       
 
-            }
+
+        }
+            //////////////////////////////////          
+            
+            
+            completeFirstDeal(&info->message, info->connection_fd); //Generates the first 2 cards of the Player and Dealer
 
             //Take decision based on the status 
             printf("\n/////TAKING DECISION BASED ON THE STATUS/////\n");
@@ -530,25 +538,55 @@ void * attentionThread(void * arg)
             } 
 
             send(info->connection_fd, &info->message, sizeof info->message, 0);
-        }
 
-        printf("SALIOO\n");
 
-        printf("\nENDING THREAD WITH CONNECTION: %d\n", info->connection_fd);
+    //         // Update the number of transactions
+    //         if(response == OK){
+    //             pthread_mutex_lock(&info->data_locks->transactions_mutex);
+    //             info->bank_data->total_transactions++;
+    //             pthread_mutex_unlock(&info->data_locks->transactions_mutex);
+    //         } else if(response == NO_ACCOUNT){
+    //             printf("Invalid acount number received.\n");
+    //         }
 
-        // Finish the connection
-        if (!recvData(info->connection_fd, &info->message, sizeof info->message))
-        {
-            printf("DENTRO DE FUNCION\n");
-            printf("Client disconnected\n");
-        }
-        info->message.msg_code = BYE;
-        send(info->connection_fd, &info->message, sizeof info->message, 0);
-        close(info->connection_fd);
+    //         // Prepare the message to the client
+    //         sprintf(buffer, "%d %f", response, balance);
+
+    //         // Send a reply
+    //         sendData(info->connection_fd, buffer, strlen(buffer)+1);
+    //     }
+    //     else
+    //     {
+    //         if (errno == EINTR) // if the poll gets interrupted, break while
+    //         {
+    //             printf("Error Interrupt\n");
+    //             break;
+                
+    //         }
+    //         else
+    //         {
+    //             perror("ERROR: poll");
+    //             exit(EXIT_FAILURE);
+    //         }
+    //     }
     }
+
+    printf("SALIOO\n");
+
+    printf("\nENDING THREAD WITH CONNECTION: %d\n", info->connection_fd);
+
+    // Finish the connection
+    if (!recvData(info->connection_fd, &info->message, sizeof info->message))
+    {
+        printf("DENTRO DE FUNCION\n");
+        printf("Client disconnected\n");
+    }
+    info->message.msg_code = BYE;
+    send(info->connection_fd, &info->message, sizeof info->message, 0);
+    close(info->connection_fd);
+
     pthread_exit(NULL);
 }
-
 
 
 

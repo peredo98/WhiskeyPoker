@@ -28,11 +28,11 @@ typedef struct whiskey_struct { //Main structure for status of the game
     int winner;
     int playersReady;
     int gameStatus;
-
+    int index_startRoundIndex;
 } whiskey_t;
 
 void dealCards(whiskey_t * whiskey_data);
-void choosewhiskey(whiskey_t *whiskey_data);
+void choosewhiskey(whiskey_t *whiskey_data, code_t playerStatus);
 void addNewPlayer(int playerId, whiskey_t * whiskey_data);
 void removePlayer(int playerId, whiskey_t * whiskey_data);
 void assignTurns(player_t * players_array, int numPlayers);
