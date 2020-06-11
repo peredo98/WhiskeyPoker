@@ -30,6 +30,7 @@ typedef struct whiskey_struct { //Main structure for status of the game
     int playersReady;
     int gameStatus;
     int index_startRoundIndex;
+    int turn;
 } whiskey_t;
 
 void dealCards(whiskey_t * whiskey_data);

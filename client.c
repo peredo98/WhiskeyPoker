@@ -24,7 +24,6 @@
 ///// FUNCTION DECLARATIONS
 void usage(char * program);
 void communicationLoop(int connection_fd);
-void showResults( message_t * message);
 void playerTurn( message_t * message, int connection_fd);
 
 ///// MAIN FUNCTION
@@ -42,8 +41,7 @@ int main(int argc, char * argv[])
 
     // Start the server
     connection_fd = connectSocket(argv[1], argv[2]);
-	// // Use the bank operations available
-    // bankOperations(connection_fd);
+	
 
     // Establish the communication
     communicationLoop(connection_fd);
@@ -105,43 +103,6 @@ void playerTurn( message_t * message, int connection_fd) { //Update status of th
     }
 }
 
-void showResults( message_t * message) { //Show the results and messages depending on the calculations of the server
-
-     //Show player and dealer cards after initial Deal
-    printf("Your final hand is:");
-    for(int i = 0; i<message->numPlayerCards; i++){
-        printf(" [%s]", message->playerCards[i]);
-    }
-    printf(" accumulating %d.\n", message->totalPlayer);
-
-    printf("The dealer's final hand is:");
-    for(int i = 0; i<message->numDealerCards; i++){
-        printf(" [%s]", message->dealerCards[i]);
-    }
-    printf(" accumulating %d.\n\n", message->totalDealer);
-    if (message->playerStatus == BUST){
-        printf("You are over 21. Sorry, the dealer takes your bet (%d).\n", message->playerBet);
-    } else if((message->dealerStatus == BUST) && ((message->playerStatus == STAND) || (message->playerStatus == TWENTYONE))){
-        printf("The dealer busted and you didn't. The dealer returns your bet (%d) plus the amount of your bet (%d).\n", message->playerBet, message->playerBet);
-    } else if (((message->dealerStatus == STAND) || (message->dealerStatus == TWENTYONE)) && ((message->playerStatus == STAND) || (message->playerStatus == TWENTYONE))){
-        if(message->totalPlayer > message->totalDealer){
-            printf("Your hand is better than the dealer's hand. The dealer returns your bet (%d) plus the amount of your bet (%d).\n", message->playerBet, message->playerBet);
-        }else if (message->totalPlayer < message->totalDealer) {
-            printf("The dealer's hand is better. The dealer gets your bet (%d).\n", message->playerBet);
-        } else if (message->totalPlayer == message->totalDealer){
-            printf("This is stand-off. You get your bet (%d) back.\n", message->playerBet);
-        }
-    } else if ((message->dealerStatus == NATURAL) && (message->playerStatus != NATURAL)){
-        printf("Sorry, the dealer got a Natural Blackjack but you didn't. The dealer takes your bet (%d).\n", message->playerBet);
-    } else if ((message->dealerStatus != NATURAL) && (message->playerStatus == NATURAL)){
-        printf("You got a Natural Blackjack and the dealer didn't. The dealer returns your bet (%d) plus 1.5x times the amount of your bet (%.0f\n).\n", message->playerBet, message->playerBet * 1.5);
-    } else if ((message->dealerStatus == NATURAL) && (message->playerStatus == NATURAL)){
-        printf("Both, the dealer and you, got a Natural Blackjack. This is a PUSH. You get your bet (%d) back.\n", message->playerBet);
-    }
-
-    printf("Your new amount of chips is: %d\n", message->playerAmount);
-
-}
 
 // Do the actual receiving and sending of data
 void communicationLoop(int connection_fd)
@@ -164,7 +125,7 @@ void communicationLoop(int connection_fd)
     }
 
     if(message.msg_code == FULL){
-        printf("The game is full. The server rejected the client.\n");
+        printf("This game is full. The server rejected the client.\n");
         return;
     }else if (message.msg_code != AMOUNT)
     {
@@ -185,12 +146,12 @@ void communicationLoop(int connection_fd)
         fflush( stdout );
         scanf("%d", &start_game);
         if(start_game == 2){
-            printf("note='%d'\n", start_game);
+            //printf("note='%d'\n", start_game);
             start_game = 0;
         }
     }
 
-    printf("ADIOS\n");
+    printf("------------WAITNING FOR THE REST OF THE PLAYERS TO START, GET READY -------------\n");
 
     message.theStatus = LOBBY;
     //SEND START
@@ -208,6 +169,7 @@ void communicationLoop(int connection_fd)
         printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
         printf("\n/////ASKING FOR THE BET/////\n");
+        printf("YOU HAVE %d LIVES", message.playerLives);
         while(1){
             send(connection_fd, &message, sizeof message, 0);
             printf("Waiting other players to finish turn\n");
@@ -236,28 +198,58 @@ void communicationLoop(int connection_fd)
 
             int playerOption =  0;
 
+            printf("TURN %d\n", message.turn);
             printf("TABLE HAND:\n");
-            printHand(message.whiskeyHand);
+            if(message.turn == 1){
+                printf("The hand is hidden\n");
+            }else{
+                printHand(message.whiskeyHand);
+            }
             printf("YOUR HAND:\n");
             printHand(message.playerHand);
 
-            while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
-                printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
-                scanf("%d", &playerOption);
-                switch(playerOption){
-                    case 1:
-                        message.playerStatus = KNOCK;
-                        break;
-                    case 2:
-                        message.playerStatus = CHANGE_ONE;
-                        changeOneCard(&message.whiskeyHand, &message.playerHand);
-                        break;
-                    case 3:
-                        message.playerStatus = CHANGE_ALL;
-                        changeAllCards(&message.whiskeyHand, &message.playerHand);
-                        break;
-                    default:
-                        printf("You should press either 1, 2, or 3\n");
+            if(message.turn == 1){
+                while((playerOption != 1) && (playerOption != 2) && (playerOption != 3) && (playerOption != 4)){
+                    printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n4: Pass\n");
+                    scanf("%d", &playerOption);
+                    switch(playerOption){
+                        case 1:
+                            message.playerStatus = KNOCK;
+                            break;
+                        case 2:
+                            message.playerStatus = CHANGE_ONE;
+                            changeOneCard(&message.whiskeyHand, &message.playerHand);
+                            break;
+                        case 3:
+                            message.playerStatus = CHANGE_ALL;
+                            changeAllCards(&message.whiskeyHand, &message.playerHand);
+                            break;
+                        case 4:
+                            message.playerStatus = PASS;
+                            break;
+                        default:
+                            printf("You should press either 1, 2, or 3\n");
+                    }
+                }
+            }else{
+                while((playerOption != 1) && (playerOption != 2) && (playerOption != 3)){
+                    printf("\nChoose one of the options:\n1: Knock\n2: Change one card\n3: Change all cards\n");
+                    scanf("%d", &playerOption);
+                    switch(playerOption){
+                        case 1:
+                            message.playerStatus = KNOCK;
+                            break;
+                        case 2:
+                            message.playerStatus = CHANGE_ONE;
+                            changeOneCard(&message.whiskeyHand, &message.playerHand);
+                            break;
+                        case 3:
+                            message.playerStatus = CHANGE_ALL;
+                            changeAllCards(&message.whiskeyHand, &message.playerHand);
+                            break;
+                        default:
+                            printf("You should press either 1, 2, or 3\n");
+                    }
                 }
             }
 
