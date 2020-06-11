@@ -30,3 +30,5 @@ A quick overview of how we will use them as seen in the solution:
   - Pointers: We will use this by passing a structure as reference between functions in the server to make calculations and are also necessary to read and send between a server and client.
   - Process creation: This is also necessary when creating concurrent clients.
   - Threads: We will use them in the server to keep track of the clients and make them do operations in the order we want depending on their turn.
+  
+  #### The program running:
