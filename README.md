@@ -24,9 +24,9 @@ The game of Whiskey Poker is composed of a set of different rules from which we 
   8. When this finish every player show his cards. The player who has the worst hand lose one life (chip).  
   9.The last player alive (the one that has 1 or more lives), gets the bets of all the players.
 ```
-####List of how you will use the topics seen in class
+#### List of how you will use the topics seen in class
 A quick overview of how we will use them as seen in the solution:
-- Dynamic memory: We will need to create an array of structs to store the data of each player (cards, bets, viuda, etc.). As there can be a different amount of players each game it will be necessary to have a dynamic array at the beginning of the game.
-- Pointers: We will use this by passing a structure as reference between functions in the server to make calculations and are also necessary to read and send between a server and client.
-- Process creation: This is also necessary when creating concurrent clients.
-- Threads: We will use them in the server to keep track of the clients and make them do operations in the order we want depending on their turn.
+  - Dynamic memory: We will need to create an array of structs to store the data of each player (cards, bets, viuda, etc.). As there can be a different amount of players each game it will be necessary to have a dynamic array at the beginning of the game.
+  - Pointers: We will use this by passing a structure as reference between functions in the server to make calculations and are also necessary to read and send between a server and client.
+  - Process creation: This is also necessary when creating concurrent clients.
+  - Threads: We will use them in the server to keep track of the clients and make them do operations in the order we want depending on their turn.
