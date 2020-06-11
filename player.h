@@ -10,6 +10,7 @@ typedef struct player_struct {
     int connected;
     int lost;
     int status;
+    int lives;
     int bet;
     hand_t hand;
     // card_t cards[5];

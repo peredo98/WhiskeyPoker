@@ -13,6 +13,7 @@
 #include <time.h>
 
 #define MAX_PLAYERS 8
+#define LIVES 2
 
 typedef struct whiskey_struct { //Main structure for status of the game
 
@@ -32,7 +33,7 @@ typedef struct whiskey_struct { //Main structure for status of the game
 } whiskey_t;
 
 void dealCards(whiskey_t * whiskey_data);
-void choosewhiskey(whiskey_t *whiskey_data, code_t playerStatus);
+void chooseWhiskey(whiskey_t *whiskey_data);
 void addNewPlayer(int playerId, whiskey_t * whiskey_data);
 void removePlayer(int playerId, whiskey_t * whiskey_data);
 void assignTurns(player_t * players_array, int numPlayers);

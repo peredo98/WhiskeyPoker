@@ -248,9 +248,11 @@ void communicationLoop(int connection_fd)
                         break;
                     case 2:
                         message.playerStatus = CHANGE_ONE;
+                        changeOneCard(&message.whiskeyHand, &message.playerHand);
                         break;
                     case 3:
                         message.playerStatus = CHANGE_ALL;
+                        changeAllCards(&message.whiskeyHand, &message.playerHand);
                         break;
                     default:
                         printf("You should press either 1, 2, or 3\n");

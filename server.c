@@ -405,16 +405,16 @@ void * attentionThread(void * arg)
     info->message.playerStatus = START;
     info->message.dealerStatus = START;
 
-    dealCards(info->whiskey_data);
     //Send OK
     send(info->connection_fd, &info->message, sizeof info->message, 0);
 
     // printf("\tRunning thread with connection_fd: %d\n", info->connection_fd);
 
     // Loop to listen for messages from the client
-    while(info->message.playerAmount >= 2){
+    while(info->whiskey_data->numPlayers >= 2){
 
         round++;
+        dealCards(info->whiskey_data);
 
         printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
@@ -431,8 +431,9 @@ void * attentionThread(void * arg)
         // }
         // else if (poll_response > 0) //if something was received
         // {
+        int knocked = 0;
 
-        while(1){
+        while(!knocked){
 
             printf("NUEVA RONDA\n");
 
@@ -490,10 +491,41 @@ void * attentionThread(void * arg)
                     pthread_exit(NULL);
                     // return;
                 }
+                //Response handling
+                printf("RESPONSE: %d\n", info->message.playerStatus);
+
+                switch (info->message.playerStatus)
+                {
+                case KNOCK:
+                    knocked = 1; 
+                    break;
+                case CHANGE_ONE:
+                    info->whiskey_data->table_hand = info->message.whiskeyHand;
+
+                    info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand = info->message.playerHand;
+
+                    printf("NEW TABLE HAND\n");
+                    printHand( info->whiskey_data->table_hand);
+                    printf("NEW PLAYER %d HAND\n", info->whiskey_data->index_playerInTurn);
+                    printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
+                    break;
+                case CHANGE_ALL:
+                    info->whiskey_data->table_hand = info->message.whiskeyHand;
+
+                    info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand = info->message.playerHand;
+
+                    printf("NEW TABLE HAND\n");
+                    printHand( info->whiskey_data->table_hand);
+                    printf("NEW PLAYER %d HAND\n", info->whiskey_data->index_playerInTurn);
+                    printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
+                    break;
+                default:
+                    break;
+                }
                 info->whiskey_data->prize += info->message.playerBet;
                 printf("The bet of the player is: %d\n", info->message.playerBet);    
             pthread_mutex_unlock(&bets_mutex);
-
+            
             //Conditional variable to know the turn of the player to play
             pthread_mutex_lock(&bets_mutex);
             printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
@@ -524,6 +556,139 @@ void * attentionThread(void * arg)
 
 
         }
+        //END LOOP
+
+        printf("FINAL ROUND\n");
+
+        printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
+
+        printf("Sin recibir 1\n");
+
+        recvData(info->connection_fd, &info->message, sizeof info->message);
+        
+        printf("Recibido 1\n");
+
+        send(info->connection_fd, &info->message, sizeof info->message, 0);
+
+        printf("ENVIADO ESTE ID: %d\n", info->playerId);
+
+        recvData(info->connection_fd, &info->message, sizeof info->message);
+
+        printf("3 RECIBIDO \n");
+
+        pthread_mutex_lock(&roundReady_mutex);
+        info->whiskey_data->index_startRoundIndex++;
+        printf("ROUND INDEX %d\n", info->whiskey_data->index_startRoundIndex);
+        if (info->whiskey_data->index_startRoundIndex == info->whiskey_data->numPlayers){
+            info->whiskey_data->index_playerInTurn = 0;
+            printf("ROUND_PLAYER INFO: %d\n", info->playerId);
+            printf("TESTING\n");
+            pthread_cond_broadcast(&roundReady_condition);
+        } 
+        pthread_mutex_unlock(&roundReady_mutex);
+
+
+        pthread_mutex_lock(&roundReady_mutex);
+            while (info->whiskey_data->index_startRoundIndex < info->whiskey_data->numPlayers) { //Do nothing (wait for this to be false)
+                    pthread_cond_wait(&roundReady_condition, &roundReady_mutex);
+            }
+        pthread_mutex_unlock(&roundReady_mutex);
+
+        pthread_mutex_lock(&bets_mutex);
+            while (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id != info->playerId){ 
+                    pthread_cond_wait(&getBets_condition, &bets_mutex);
+            }
+
+            //Get the bet and player status from the client
+            printf("\n/////Getting player %d bet/////\n", info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id);
+            printf("ENTRO AL SEGUNDO CONNECTION: %d\n", info->connection_fd);
+
+            info->message.whiskeyHand = info->whiskey_data->table_hand;
+            printf("\n/////SENDING HAND/////%d\n", info->whiskey_data->index_playerInTurn);
+            printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
+            info->message.playerHand = info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand;
+
+            send(info->connection_fd, &info->message, sizeof info->message, 0);
+            // Receive the request
+            if (!recvData(info->connection_fd, &info->message, sizeof info->message)){
+                pthread_exit(NULL);
+                // return;
+            }
+            //Response handling
+            printf("RESPONSE: %d\n", info->message.playerStatus);
+
+            switch (info->message.playerStatus)
+            {
+            case KNOCK:
+                
+                break;
+            case CHANGE_ONE:
+                info->whiskey_data->table_hand = info->message.whiskeyHand;
+
+                info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand = info->message.playerHand;
+
+                printf("NEW TABLE HAND\n");
+                printHand( info->whiskey_data->table_hand);
+                printf("NEW PLAYER %d HAND\n", info->whiskey_data->index_playerInTurn);
+                printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
+                break;
+            case CHANGE_ALL:
+                info->whiskey_data->table_hand = info->message.whiskeyHand;
+
+                info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand = info->message.playerHand;
+
+                printf("NEW TABLE HAND\n");
+                printHand( info->whiskey_data->table_hand);
+                printf("NEW PLAYER %d HAND\n", info->whiskey_data->index_playerInTurn);
+                printHand(info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].hand);
+                break;
+            default:
+                break;
+            }
+            info->whiskey_data->prize += info->message.playerBet;
+            printf("The bet of the player is: %d\n", info->message.playerBet);    
+        pthread_mutex_unlock(&bets_mutex);
+
+        //Conditional variable to know the turn of the player to play
+        pthread_mutex_lock(&bets_mutex);
+        printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
+            if (info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id == info->playerId){
+                printf("ENTRO AL PRIMERO CONNECTION: %d\n", info->connection_fd);
+                pthread_mutex_lock(&betsReady_mutex);
+                printf("info->whiskey_data->index_playerInTurn: %d\n", info->whiskey_data->index_playerInTurn);
+                info->whiskey_data->index_playerInTurn++;
+                if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
+                    printf("The prize for the winner is: %d\n", info->whiskey_data->prize);
+                    info->whiskey_data->index_startRoundIndex = 0;
+                    printf("Going to next round\n");
+                    //CHOOSE LOOSER
+                    int looser_index = 0;
+                    for(int i = 1; i< info->whiskey_data->numPlayers; i++){
+                        if(!firstHandIsHigher(info->whiskey_data->players_array[i].hand, info->whiskey_data->players_array[looser_index].hand)){
+                            looser_index = i;
+                        } 
+                    }
+                    
+                    info->whiskey_data->players_array[looser_index].lives--;
+                    printf("Player %d has lost 1 live\n Remaining lives: %d\n", looser_index, info->whiskey_data->players_array[looser_index].lives);
+                    if(info->whiskey_data->players_array[looser_index].lives <= 0){
+                        removePlayer(info->whiskey_data->players_array[looser_index].id, info->whiskey_data);
+                        printf("Player was eliminated\n");
+                    }
+                    pthread_cond_broadcast(&betsReady_condition);
+                } 
+                pthread_mutex_unlock(&betsReady_mutex);
+                printf("UNLOCKED\n");
+                pthread_cond_broadcast(&getBets_condition);
+            } 
+        pthread_mutex_unlock(&bets_mutex);
+
+        pthread_mutex_lock(&betsReady_mutex);
+            while (info->whiskey_data->index_playerInTurn < info->whiskey_data->numPlayers){ //Do nothing (wait for ths to be false)
+                pthread_cond_wait(&betsReady_condition, &betsReady_mutex);
+            }
+        pthread_mutex_unlock(&betsReady_mutex);       
+            //END FINAL ROUND
             //////////////////////////////////          
             
             

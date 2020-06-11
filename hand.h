@@ -40,6 +40,8 @@ void sortCardsByRank(hand_t * hand);
 void sortCardsBySuit(card_t cards[5]);
 void printHand(hand_t hand);
 hand_t compareHands(hand_t hand, hand_t other_hand);
-
+void changeAllCards(hand_t * table_hand, hand_t * player_hand);
+void changeOneCard(hand_t * table_hand, hand_t * player_hand);
+int firstHandIsHigher(hand_t hand, hand_t other_hand);
 
 #endif

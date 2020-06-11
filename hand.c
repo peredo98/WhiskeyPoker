@@ -265,3 +265,80 @@ hand_t compareHands(hand_t hand, hand_t other_hand){
     }
 
 }
+
+int firstHandIsHigher(hand_t hand, hand_t other_hand){
+
+    if(hand.type > other_hand.type){
+        printf("The first hand provided is better.\n");
+        return 1;
+    }else if(hand.type < other_hand.type){
+        printf("The second hand provided is better.\n");
+        return 0;
+    } else { //If the hand types are equal
+        if(hand.total_value > other_hand.total_value){
+             printf("Both hands are of the same type but the first player has a higher total value.\n");
+             return 1;
+        }else if(hand.total_value < other_hand.total_value){
+             printf("Both hands are of the same type but the second player has a higher total value.\n");
+             return 0;
+        } else {        
+            printf("This is a draw, no one wins.\n");
+            return 1;
+        }
+    }
+}
+
+void changeAllCards(hand_t * table_hand, hand_t * player_hand){
+
+    hand_t temp;
+
+    temp = *player_hand;
+    *player_hand = *table_hand;
+    *table_hand = temp;
+
+    evaluateHand(player_hand);
+    sortCardsByRank(player_hand);
+    evaluateHand(table_hand);
+    sortCardsByRank(table_hand);
+}
+
+void changeOneCard(hand_t * table_hand, hand_t * player_hand){
+
+    int chooseCard;
+    card_t tempCard;
+    int chooseTableCard;
+
+    while(1){
+        printf("Escoge la carta que vas a cambiar: \n");
+        printf("Card 1 = %s %s\n",player_hand->cards[0].rank, player_hand->cards[0].suit);
+        printf("Card 2 = %s %s\n",player_hand->cards[1].rank, player_hand->cards[1].suit);
+        printf("Card 3 = %s %s\n",player_hand->cards[2].rank, player_hand->cards[2].suit);
+        printf("Card 4 = %s %s\n",player_hand->cards[3].rank, player_hand->cards[3].suit);
+        printf("Card 5 = %s %s\n",player_hand->cards[4].rank, player_hand->cards[4].suit);
+        scanf("%d", &chooseCard);
+
+        printf("Escoge una sola carta: \n");
+        printf("Card 1 = %s %s\n",table_hand->cards[0].rank, table_hand->cards[0].suit);
+        printf("Card 2 = %s %s\n",table_hand->cards[1].rank, table_hand->cards[1].suit);
+        printf("Card 3 = %s %s\n",table_hand->cards[2].rank, table_hand->cards[2].suit);
+        printf("Card 4 = %s %s\n",table_hand->cards[3].rank, table_hand->cards[3].suit);
+        printf("Card 5 = %s %s\n",table_hand->cards[4].rank, table_hand->cards[4].suit);
+        scanf("%d", &chooseTableCard);
+        
+        if(chooseCard<1 || chooseCard>5 || chooseTableCard<1 || chooseTableCard>5){
+            printf("Error choose a number between 1 and 5 \n");
+        }
+        else{
+            tempCard = table_hand->cards[chooseTableCard-1];
+            table_hand->cards[chooseTableCard-1] =player_hand->cards[chooseCard-1];
+            player_hand->cards[chooseCard-1] = tempCard; 
+            break;
+        }
+    }
+
+    evaluateHand(player_hand);
+    sortCardsByRank(player_hand);
+    evaluateHand(table_hand);
+    sortCardsByRank(table_hand);
+
+}

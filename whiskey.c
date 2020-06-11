@@ -147,6 +147,7 @@ void addNewPlayer(int playerId, whiskey_t * whiskey_data) {
             whiskey_data->players_array[i].id = playerId;
             whiskey_data->players_array[i].connected = 1;
             whiskey_data->players_array[i].lost = 0;
+            whiskey_data->players_array[i].lives = LIVES;
             whiskey_data->players_array[i].status = LOBBY;
             printf("Added player with ID: %d\n", whiskey_data->players_array[i].id);
             break;
@@ -161,7 +162,8 @@ void removePlayer(int playerId, whiskey_t * whiskey_data) {
         if(whiskey_data->players_array[i].id == playerId){
             whiskey_data->players_array[i].id = 0;
             whiskey_data->players_array[i].connected = 0;
-            printf("Removed player with ID: %d\n", whiskey_data->players_array[i].id);
+            whiskey_data->numPlayers--;
+            printf("Removed player with ID: %d, Number of platers: %d\n", whiskey_data->players_array[i].id, whiskey_data->numPlayers);
             break;
         }
     }
@@ -187,7 +189,7 @@ void initGame(whiskey_t * whiskey_data) {
     }
 }
 
-void choosewhiskey(whiskey_t *whiskey_data, code_t playerStatus){
+void chooseWhiskey (whiskey_t *whiskey_data){
     
     int option;
     int chooseCard;
@@ -201,9 +203,9 @@ void choosewhiskey(whiskey_t *whiskey_data, code_t playerStatus){
     card_t tempCard;
 
     while(1){ //Keep asking for a valid bet
-            // printf("Si quieres la viuda entera presiona 1, si quieres solo una carta presiona 2\n");
-            // scanf("%d", &option);
-            if(playerStatus == CHANGE_ALL){
+            printf("Si quieres la viuda entera presiona 1, si quieres solo una carta presiona 2\n");
+            scanf("%d", &option);
+            if(option == 1){
                 printf("Toma la viuda entera");
                 temp = playerHand;
                 playerHand = tableHand;
@@ -212,7 +214,7 @@ void choosewhiskey(whiskey_t *whiskey_data, code_t playerStatus){
                 whiskey_data->players_array[0].hand=playerHand;
                 break;
             } 
-            else if(playerStatus == CHANGE_ONE) {
+            else if(option == 2) {
                 while(1){
                     printf("Escoge la carta que vas a cambiar: ");
                     printf("Card 1 = %s %s\n",playerHand.cards[0].rank, playerHand.cards[0].suit);
