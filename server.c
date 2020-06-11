@@ -599,7 +599,6 @@ void * attentionThread(void * arg)
                 printf("info->whiskey_data->index_playerInTurn: %d\n", info->whiskey_data->index_playerInTurn);
                 info->whiskey_data->index_playerInTurn++;
                 if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
-                    printf("The prize for the winner is: %d\n", info->whiskey_data->prize);
                     info->whiskey_data->index_startRoundIndex = 0;
                     printf("Going to next round\n");
                     //CHOOSE LOOSER
@@ -618,6 +617,9 @@ void * attentionThread(void * arg)
                     printf("Player %d has lost 1 live\n Remaining lives: %d\n", looser_index, info->whiskey_data->players_array[looser_index].lives);
                     if(info->whiskey_data->players_array[looser_index].lives <= 0){
                         removePlayer(info->whiskey_data->players_array[looser_index].id, info->whiskey_data);
+                        // if(info->whiskey_data->numPlayers == 1){
+                        //     getWinner(info->whiskey_data);
+                        // }
                         printf("Player was eliminated BYE BYE\n");
                     }
                     pthread_cond_broadcast(&betsReady_condition);
