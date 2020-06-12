@@ -4,7 +4,7 @@
     Camila Rovirosa Ochoa A01024192
 
     Proyect: Whiskey Poker
-
+    ♥♦♣♠
 */
 #include "whiskey.h"
 
@@ -12,7 +12,7 @@ void dealCards(whiskey_t * whiskey_data){
 
     const char cardsArray[13][3]= {"A","2","3","4","5","6","7","8","9","10","J","Q","K"};
     const int valuesArray[13]= {14,2,3,4,5,6,7,8,9,10,11,12,13};
-    const char suitsArray[4][9]= {"Hearts","Diamonds","Clubs","Spades"}; 
+    const char suitsArray[4][9]= {"♥","♦","♣","♠"}; 
     const int suitsValueArray[4]= {1, 2, 3,4};
     card_t cards[52];
     card_t random_card;
@@ -106,7 +106,7 @@ void dealCards(whiskey_t * whiskey_data){
     }
 
     //print player cards
-    for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
+    /*for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
         if(i == whiskey_data->numPlayers){
             printf("Sorted Table cards:\n");
             for(int j = 0; j<5; j++){
@@ -120,9 +120,9 @@ void dealCards(whiskey_t * whiskey_data){
             }
             printf("\n");
         }
-    }
+    }*/
 
-    printf("\n\nTESTING EVALUATION \n\n");
+    /*printf("\n\nTESTING EVALUATION \n\n");
 
     for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
         if(i == whiskey_data->numPlayers){
@@ -142,7 +142,7 @@ void dealCards(whiskey_t * whiskey_data){
             evaluateHand(&whiskey_data->players_array[i].hand);
             printf("Type: %d, Untie Value: %d, HighCardRank: %s,  HighCardValue: %d\n", whiskey_data->players_array[i].hand.type, whiskey_data->players_array[i].hand.total_value, whiskey_data->players_array[i].hand.high_card_rank,whiskey_data->players_array[i].hand.high_card_value);
         }
-    }
+    }*/
 }
 
 
@@ -300,4 +300,41 @@ void assignTurns(player_t * players_array, int numPlayers){
         }
     }
 
+}
+
+void winner (whiskey_t *whiskey_data, int numPlayers){
+    int tempWinType = -1;
+    int playerWinnerId;
+    player_t * tempArr = malloc(numPlayers * sizeof (player_t));;
+    for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
+        
+        if(whiskey_data->players_array[i].hand.type < tempWinType){
+            printf("Impossible No Winners \n");
+        }
+        else{
+             tempArr[1] = whiskey_data->players_array[i];
+             if(whiskey_data->players_array[i].hand.type > tempArr[1].hand.type){
+                 playerWinnerId =whiskey_data->players_array[i].id;
+             }
+             else if (whiskey_data->players_array[i].hand.type = tempArr[1].hand.type){
+                 if(whiskey_data->players_array[i].hand.total_value > tempArr[1].hand.total_value){
+                     playerWinnerId =whiskey_data->players_array[i].id;
+                 }else{
+                     playerWinnerId = tempArr[1].id;
+                 }
+             }else{
+                 playerWinnerId = tempArr[1].id;
+             }
+        }
+      
+    }
+        printf("id: %d \n",playerWinnerId);
+     for(int i = 0; i<((whiskey_data->numPlayers) + 1); i++){
+         if(whiskey_data->players_array[i].id = playerWinnerId){
+             printf("Winner Player");
+             for(int j = 0; j<5; j++){
+                printf("Cart: %s, Suit %s, SuitValue %d, Value %d\n", whiskey_data->players_array[i].hand.cards[j].rank, whiskey_data->players_array[i].hand.cards[j].suit, whiskey_data->players_array[i].hand.cards[j].suit_value, whiskey_data->players_array[i].hand.cards[j].rank_value);
+            }
+         }
+     }
 }

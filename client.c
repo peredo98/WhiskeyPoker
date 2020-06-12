@@ -107,7 +107,7 @@ void communicationLoop(int connection_fd)
         }
     }
 
-    printf("------------WAITNING FOR THE REST OF THE PLAYERS TO START, GET READY -------------\n");
+    printf("----------WAITNING FOR THE REST OF THE PLAYERS TO START, GET READY -----------\n");
 
     message.theStatus = LOBBY;
     //SEND START
@@ -119,7 +119,7 @@ void communicationLoop(int connection_fd)
     while(message.playerAmount >= 2) //While the player has enough money to bet
     {
         round++;
-
+        printf("                  ♥♦♣♠       \n");
         printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
 
         printf("\n/////ASKING FOR THE BET/////\n");

@@ -39,5 +39,5 @@ void addNewPlayer(int playerId, whiskey_t * whiskey_data);
 void removePlayer(int playerId, whiskey_t * whiskey_data);
 void assignTurns(player_t * players_array, int numPlayers);
 void initGame(whiskey_t * whiskey_data);
-
+void winner (whiskey_t *whiskey_data, int numPlayers);
 #endif

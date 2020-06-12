@@ -4,7 +4,7 @@
     Raziel Nicolás Martínez Castillo A01410695
     Camila Rovirosa Ochoa A01024192
 
-    Proyect: Whiskey Poker
+    Proyect: Whiskey Poker ♥♦♣♠
 
 */
 
@@ -252,13 +252,13 @@ void * attentionThread(void * arg)
         pthread_exit(NULL);
     }
 
-    printf("The starting amount of the player is: %d\n", info->message.playerAmount);
+    //printf("The starting amount of the player is: %d\n", info->message.playerAmount);
 
     if((info->whiskey_data->lowestAmount > info->message.playerAmount) || (info->whiskey_data->lowestAmount == 0)) {
         info->whiskey_data->lowestAmount = info->message.playerAmount;
     }
 
-    printf("The players can bet at most %d.\n", info->whiskey_data->lowestAmount);
+    //printf("The players can bet at most %d.\n", info->whiskey_data->lowestAmount);
 
     //add player to players array
     addNewPlayer(info->playerId, info->whiskey_data);
@@ -280,7 +280,7 @@ void * attentionThread(void * arg)
               for(int i =0 ; i<info->whiskey_data->numPlayers; i++){
                 printf("PLAYER INFO: %d, Connected: %d, %d\n", info->whiskey_data->players_array[i].id, info->whiskey_data->players_array[i].connected, i);
               }
-              printf("TESTING\n");
+              //printf("TESTING\n");
               pthread_cond_broadcast(&start_condition);
           } 
         pthread_mutex_unlock(&ready_mutex);
@@ -291,7 +291,7 @@ void * attentionThread(void * arg)
                 pthread_cond_wait(&start_condition, &ready_mutex);
           }
           info->message.lowestAmount = info->whiskey_data->lowestAmount;
-          printf("ESTABLISH LOWEST AMOUNT %d FOR THREAD WITH CONNECTION: %d", info->message.lowestAmount, info->connection_fd);
+          //printf("ESTABLISH LOWEST AMOUNT %d FOR THREAD WITH CONNECTION: %d", info->message.lowestAmount, info->connection_fd);
           
     pthread_mutex_unlock(&ready_mutex);
 
@@ -309,7 +309,7 @@ void * attentionThread(void * arg)
 
         round++;
         dealCards(info->whiskey_data);
-
+        printf("\n\n\n\n");
         printf("\n|||||||||||||||ROUND %d|||||||||||||||\n", round);
         
         int knocked = 0;
@@ -324,11 +324,11 @@ void * attentionThread(void * arg)
 
             printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
 
-            printf("Sin recibir 1\n");
+           //printf("Sin recibir 1\n");
 
             recvData(info->connection_fd, &info->message, sizeof info->message);
             
-            printf("Recibido 1\n");
+            //printf("Recibido 1\n");
 
             send(info->connection_fd, &info->message, sizeof info->message, 0);
 
@@ -336,7 +336,7 @@ void * attentionThread(void * arg)
 
             recvData(info->connection_fd, &info->message, sizeof info->message);
 
-            printf("3 RECIBIDO \n");
+            //printf("3 RECIBIDO \n");
 
             pthread_mutex_lock(&roundReady_mutex);
             info->whiskey_data->index_startRoundIndex++;
@@ -415,7 +415,7 @@ void * attentionThread(void * arg)
                     break;
                 }
                 info->whiskey_data->prize += info->message.playerBet;
-                printf("The bet of the player is: %d\n", info->message.playerBet);    
+                //printf("The bet of the player is: %d\n", info->message.playerBet);    
             pthread_mutex_unlock(&bets_mutex);
             
             //Conditional variable to know the turn of the player to play
@@ -449,7 +449,8 @@ void * attentionThread(void * arg)
 
         }
         //END LOOP
-
+        printf("\n\n\n");
+        printf("-------------------------------------------------\n");
         printf("FINAL ROUND\n");
 
         printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
@@ -491,8 +492,7 @@ void * attentionThread(void * arg)
                     pthread_cond_wait(&getBets_condition, &bets_mutex);
             }
 
-            //Get the bet and player status from the client
-            printf("\n/////Getting player %d bet/////\n", info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id);
+            //status from the client
             printf("ENTERING SECOND CONNECTION: %d\n", info->connection_fd);
 
             info->message.whiskeyHand = info->whiskey_data->table_hand;
@@ -539,9 +539,10 @@ void * attentionThread(void * arg)
                 break;
             }
             info->whiskey_data->prize += info->message.playerBet;
-            printf("The bet of the player is: %d\n", info->message.playerBet);    
+                
         pthread_mutex_unlock(&bets_mutex);
-
+            printf("winner\n");
+            winner( info->whiskey_data, info->playerId);
         //Conditional variable to know the turn of the player to play
         pthread_mutex_lock(&bets_mutex);
         printf("CONNECTION: %d, CompararId %d, PLAYER IN TURN: %d, ESTE ID: %d\n", info->connection_fd, info->whiskey_data->players_array[info->whiskey_data->index_playerInTurn].id, info->whiskey_data->index_playerInTurn, info->playerId);
@@ -552,7 +553,7 @@ void * attentionThread(void * arg)
                 info->whiskey_data->index_playerInTurn++;
                 if (info->whiskey_data->index_playerInTurn == info->whiskey_data->numPlayers){
                     info->whiskey_data->index_startRoundIndex = 0;
-                    printf("Going to next round\n");
+                    printf("Going to last round\n");
                     //CHOOSE LOOSER
                     int looser_index = 0;
                     for(int i = 1; i< info->whiskey_data->numPlayers; i++){
@@ -569,9 +570,6 @@ void * attentionThread(void * arg)
                     printf("Player %d has lost 1 live\n Remaining lives: %d\n", looser_index, info->whiskey_data->players_array[looser_index].lives);
                     if(info->whiskey_data->players_array[looser_index].lives <= 0){
                         removePlayer(info->whiskey_data->players_array[looser_index].id, info->whiskey_data);
-                        // if(info->whiskey_data->numPlayers == 1){
-                        //     getWinner(info->whiskey_data);
-                        // }
                         printf("Player was eliminated BYE BYE\n");
                     }
                     pthread_cond_broadcast(&betsReady_condition);
