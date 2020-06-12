@@ -33,15 +33,15 @@ A quick overview of how we will use them as seen in the solution:
   - Threads: We will use them in the server to keep track of the clients and make them do operations in the order we want depending on their turn.
   
   #### The program running:
-    -First clone this repository  using  " git clone " command
-    -It is preferable that this program is run in linuc or the Ubuntu wsl
-    -Once cloned go to the direction where you save the repository and open it
-    -To compile this program use the command "make" in the terminal
-    -You will need at least thre differnt teriminals, one for the server, and at least two one per client or player you want to use.
+  -First clone this repository  using  " git clone " command
+  -It is preferable that this program is run in linuc or the Ubuntu wsl
+  -Once cloned go to the direction where you save the repository and open it
+  -To compile this program use the command "make" in the terminal
+  -You will need at least thre differnt teriminals, one for the server, and at least two one per client or player you want to use.
     You can have a minimum of two players and a maximun of 8
     
-    -First run the server with this command "./server 8400 "
-    -Then per client run this command "./client localhost 8400 "
+  -First run the server with this command "./server 8400 "
+  -Then per client run this command "./client localhost 8400 "
     You will se something like this:
     ![alt text](https://github.com/peredo98/WhiskeyPoker/blob/master/tutorial.png)
-    follow the instrucctions and have fun!
+    Follow the instrucctions and have fun!
