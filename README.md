@@ -33,6 +33,7 @@ A quick overview of how we will use them as seen in the solution:
   - Threads: We will use them in the server to keep track of the clients and make them do operations in the order we want depending on their turn.
   
   #### The program running:
+  We decided not to create a "dummy client" because we risk having the player play forever in the same round since it may take a lot of time before a dummy client decides to knock
   -First clone this repository  using  " git clone " command
   -It is preferable that this program is run in linuc or the Ubuntu wsl
   -Once cloned go to the direction where you save the repository and open it
