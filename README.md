@@ -43,4 +43,5 @@ A quick overview of how we will use them as seen in the solution:
     -First run the server with this command "./server 8400 "
     -Then per client run this command "./client localhost 8400 "
     You will se something like this:
+    ![alt text](https://github.com/peredo98/WhiskeyPoker/blob/master/tutorial.png)
     follow the instrucctions and have fun!
